@@ -42,6 +42,7 @@
 //   return OverlaySetting;
 // };
 
+const mongoose = require('mongoose');
 
 // models/overlaySetting.js
 const overlaySettingSchema = new mongoose.Schema(
