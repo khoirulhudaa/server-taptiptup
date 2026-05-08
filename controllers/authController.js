@@ -285,15 +285,18 @@ const sendResetEmail = async (email, resetLink) => {
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
+    console.log('1. Start register');
 
     // Cek email duplikat
     const existingUser = await User.findOne({ email });
+    console.log('2. Check existing user');
     if (existingUser) {
       return res.status(400).json({ message: 'Email sudah digunakan' });
     }
 
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedPin = await bcrypt.hash(pin, 10);
+    console.log('3. Pin generated');
 
     // Buat user baru — password di-hash oleh pre('save') hook di model
     const newUser = await User.create({
@@ -305,6 +308,7 @@ exports.register = async (req, res) => {
       verifyPinExpired: new Date(Date.now() + 5 * 60 * 1000),
       isVerified: false,
     });
+    console.log('4. User created');
 
     // Buat overlay setting default untuk user baru
     await OverlaySetting.create({
@@ -315,11 +319,14 @@ exports.register = async (req, res) => {
       textColor: '#ffffff',
       duration: 5000,
     });
+    console.log('5. Overlay created');
 
     await sendPinEmail(email, pin);
+    console.log('6. Email sent');
 
     res.json({ message: 'PIN verifikasi telah dikirim ke email' });
   } catch (err) {
+    console.error('ERROR AT:', err); // ← lihat log ini, angka terakhir = titik gagalnya
     res.status(500).json({ message: 'Registrasi gagal', error: err.message });
   }
 };
