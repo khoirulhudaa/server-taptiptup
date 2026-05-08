@@ -244,6 +244,8 @@
 // };
 
 
+
+
 // controllers/authController.js
 const { User, OverlaySetting } = require('../models');
 const crypto = require('crypto');
@@ -285,20 +287,21 @@ const sendResetEmail = async (email, resetLink) => {
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    console.log('1. Start register');
+    console.log('1. Start register:', email);
 
-    // Cek email duplikat
+    // 1. Cek duplikasi
     const existingUser = await User.findOne({ email });
-    console.log('2. Check existing user');
     if (existingUser) {
       return res.status(400).json({ message: 'Email sudah digunakan' });
     }
 
+    // 2. Persiapkan PIN
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedPin = await bcrypt.hash(pin, 10);
-    console.log('3. Pin generated');
+    console.log('2. PIN Generated');
 
-    // Buat user baru — password di-hash oleh pre('save') hook di model
+    // 3. Simpan User
+    // Catatan: password akan dihash oleh pre-save hook di model User
     const newUser = await User.create({
       username,
       email,
@@ -308,26 +311,43 @@ exports.register = async (req, res) => {
       verifyPinExpired: new Date(Date.now() + 5 * 60 * 1000),
       isVerified: false,
     });
-    console.log('4. User created');
+    console.log('3. User created');
 
-    // Buat overlay setting default untuk user baru
+    // 4. Buat default setting overlay
     await OverlaySetting.create({
-      userId: newUser._id,  // ← _id bukan id
+      userId: newUser._id,
       minDonate: 10000,
       overlayTheme: 'modern',
       backgroundColor: '#6366f1',
       textColor: '#ffffff',
       duration: 5000,
     });
-    console.log('5. Overlay created');
+    console.log('4. Overlay setting created');
 
-    await sendPinEmail(email, pin);
-    console.log('6. Email sent');
+    // 5. Kirim Email (Titik krusial)
+    try {
+      await sendPinEmail(email, pin);
+      console.log('5. Email sent successfully');
+    } catch (mailError) {
+      // Jika email gagal, kita hapus user yang tanggung agar bisa daftar ulang
+      await User.findByIdAndDelete(newUser._id);
+      await OverlaySetting.deleteOne({ userId: newUser._id });
+      return res.status(500).json({ 
+        message: 'Gagal mengirim email verifikasi. Silakan coba lagi nanti.',
+        error: mailError.message 
+      });
+    }
 
-    res.json({ message: 'PIN verifikasi telah dikirim ke email' });
+    return res.status(201).json({ 
+      message: 'Registrasi berhasil! PIN verifikasi telah dikirim ke email kamu.' 
+    });
+
   } catch (err) {
-    console.error('ERROR AT:', err); // ← lihat log ini, angka terakhir = titik gagalnya
-    res.status(500).json({ message: 'Registrasi gagal', error: err.message });
+    console.error('GENERAL_REGISTER_ERROR:', err);
+    res.status(500).json({ 
+      message: 'Terjadi kesalahan sistem saat registrasi.',
+      error: err.message 
+    });
   }
 };
 
