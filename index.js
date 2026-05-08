@@ -68,6 +68,15 @@ const overlayRoutes  = require('./routers/overlayRouter');
 const midtransRoutes = require('./routers/midtransRouter');
 const authRoutes     = require('./routers/authRouter');
 
+// ✅ Testing route
+app.get('/testing', (req, res) => {
+  res.json({
+    status: 'OK',
+    message: 'Server is running!',
+    node_env: process.env.NODE_ENV,
+  });
+});
+
 // Gunakan Routes
 app.use('/api/overlay',   overlayRoutes);
 app.use('/api/midtrans',  midtransRoutes);
