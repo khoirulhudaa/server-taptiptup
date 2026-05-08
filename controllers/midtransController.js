@@ -402,7 +402,9 @@ const midtransClient = require('midtrans-client');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const { Donation, Withdrawal, User } = require('../models');
-
+require('dotenv').config();
+console.log('MONGO_URI:', process.env.MONGO_URI);
+console.log('SERVER_KEY:', process.env.MIDTRANS_SERVER_KEY);
 // ============================================================
 // DETEKSI ENVIRONMENT
 // ============================================================
