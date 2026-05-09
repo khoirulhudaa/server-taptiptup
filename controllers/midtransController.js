@@ -3,7 +3,7 @@ const midtransClient = require('midtrans-client');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const { Donation, Withdrawal, User, OverlaySetting } = require('../models');
-const { containsBannedWord } = require('./bannedWordController');
+const { filterMessage } = require('./bannedWordController');
 require('dotenv').config();
 console.log('MONGO_URI:', process.env.MONGO_URI);
 console.log('SERVER_KEY:', process.env.MIDTRANS_SERVER_KEY);
@@ -91,8 +91,8 @@ exports.createDonation = async (req, res) => {
 
     const snapResponse = await snap.createTransaction(parameter);
 
-    const isBanned = await containsBannedWord(userId, message);
-    if (isBanned) {
+   const { blocked, filtered } = await filterMessage(userId, message);
+    if (blocked) {
       return res.status(400).json({ message: 'Pesanmu mengandung kata yang tidak diizinkan oleh streamer ini.' });
     }
 
@@ -101,7 +101,7 @@ exports.createDonation = async (req, res) => {
       userId,
       amount: Math.round(Number(amount)),
       donorName: donorName || 'Anonim',
-      message: message || '',
+      message: filtered || '',
       paymentUrl: snapResponse.redirect_url,
       status: 'PENDING',
     });

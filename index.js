@@ -78,6 +78,7 @@ const donationRoutes     = require('./routers/donationRouter');
 const followRoutes = require('./routers/followRouter');
 const milestoneRoutes = require('./routers/milestoneRouter');
 const bannedWordRoutes = require('./routers/bannedWordRouter');
+const widgetRoutes = require('./routers/widgetRouter');
 
 // ✅ Testing route
 app.get('/testing', (req, res) => {
@@ -96,6 +97,7 @@ app.use('/api/donations',      donationRoutes);
 app.use('/api/follows', followRoutes);
 app.use('/api/milestones',   milestoneRoutes);
 app.use('/api/banned-words', bannedWordRoutes);
+app.use('/widget', widgetRoutes);
 
 // Koneksi ke MongoDB lalu jalankan server
 const PORT = process.env.PORT || 5101;

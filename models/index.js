@@ -4,7 +4,7 @@ const OverlaySetting = require('./overlaySetting');
 const Withdrawal   = require('./withdrawl');
 const Follow         = require('./follow'); // ← tambah ini
 const Milestone         = require('./milestone'); // ← tambah ini
-const bannedWord = require('./bannedWord');
+const BannedWord = require('./bannedWord');
 
 module.exports = {
   User,
@@ -13,5 +13,5 @@ module.exports = {
   Withdrawal,
   Follow,
   Milestone,
-  bannedWord
+  BannedWord
 };
