@@ -54,8 +54,15 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
+  // Tambah keduanya biar aman
+  socket.on('join-room', (token) => {
+    socket.join(token);
+    console.log(`Client joined room: ${token}`);
+  });
+  
   socket.on('join-overlay', (token) => {
     socket.join(token);
+    console.log(`Overlay joined room: ${token}`);
   });
 });
 
