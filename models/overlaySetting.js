@@ -83,6 +83,10 @@ const overlaySettingSchema = new mongoose.Schema(
     // ── Misc ────────────────────────────────────────────────────────────────
     soundUrl:  String,
     customCss: String,
+
+    leaderboardShowAmount: { type: Boolean, default: true },
+    leaderboardLimit:      { type: Number, default: 10 },
+    leaderboardPeriod:     { type: String, enum: ['alltime', 'today'], default: 'alltime' },
   },
   { timestamps: true }
 );

@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const { Donation, Withdrawal, User, OverlaySetting } = require('../models');
 const { filterMessage } = require('./bannedWordController');
+const subathonCtrl = require('./subathonController');
+
 require('dotenv').config();
 console.log('MONGO_URI:', process.env.MONGO_URI);
 console.log('SERVER_KEY:', process.env.MIDTRANS_SERVER_KEY);
@@ -242,6 +244,15 @@ exports.handleWebhook = async (req, res) => {
             };
 
             io.to(room).emit('new-donation', payload);
+            const subathonResult = await subathonCtrl.handleDonationPaid(
+              streamer._id, 
+              dataDonasi.amount
+            );
+            if (subathonResult) {
+              io.to(room).emit('subathon-updated', subathonResult.timer);
+              console.log(`[Webhook] ✅ Subathon +${subathonResult.added}s ditambahkan`);
+            }
+
             console.log(`[Webhook] ✅ Socket emit "new-donation" ke room "${room}":`, payload);
           }
         } catch (socketErr) {

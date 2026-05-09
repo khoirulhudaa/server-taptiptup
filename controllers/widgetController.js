@@ -1,4 +1,4 @@
-const { User, Donation, Milestone } = require('../models');
+const { User, Donation, Milestone, OverlaySetting } = require('../models');
 
 // Helper ambil user by token (untuk OBS URL pakai token seperti overlay)
 const getUserByToken = async (token) => {
@@ -36,15 +36,29 @@ exports.leaderboard = async (req, res) => {
     || await User.findOne({ username: req.params.username }).lean();
   if (!user) return res.status(404).send('Not found');
 
+  // Ambil settings leaderboard
+  const setting = await OverlaySetting.findOne({ userId: user._id }).lean();
+  const limit        = setting?.leaderboardLimit      || 10;
+  const showAmount   = setting?.leaderboardShowAmount !== false;
+  const period       = setting?.leaderboardPeriod     || 'alltime';
+
+  // Filter tanggal jika 'today'
+  const matchExtra = {};
+  if (period === 'today') {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    matchExtra.createdAt = { $gte: startOfDay };
+  }
+
   const donors = await Donation.aggregate([
-    { $match: { userId: user._id, status: 'PAID' } },
+    { $match: { userId: user._id, status: 'PAID', ...matchExtra } },
     { $group: { _id: '$donorName', totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
     { $sort: { totalAmount: -1 } },
-    { $limit: 10 },
+    { $limit: limit },
     { $project: { name: '$_id', totalAmount: 1, count: 1, _id: 0 } },
   ]);
 
-  res.send(renderLeaderboardHTML(donors, user.username));
+  res.send(renderLeaderboardHTML(donors, user.username, showAmount));
 };
 
 // ─── QRCODE WIDGET ────────────────────────────────────────────────────────────
@@ -178,7 +192,7 @@ const renderLeaderboardHTML = (donors, username) => `<!DOCTYPE html>
             <div class="name">${d.name}</div>
             <div class="count">${d.count}x donasi</div>
           </div>
-          <div class="amount">Rp ${d.totalAmount.toLocaleString('id-ID')}</div>
+          <div class="amount">${showAmount ? `Rp ${d.totalAmount.toLocaleString('id-ID')}` : `${d.count}x donasi`}</div>
         </div>`;
       }).join('')}
 </body>

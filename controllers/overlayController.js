@@ -41,7 +41,11 @@ exports.updateSettings = async (req, res) => {
       'baseDuration', 'extraPerAmount', 'extraDuration',
       'durationTiers', 'mediaTriggers',
       'soundUrl', 'customCss',
-      'soundTiers'
+      'soundTiers',
+      'leaderboardShowAmount', 
+      'leaderboardLimit', 
+      'leaderboardPeriod',
+
     ];
 
     console.log('[updateSettings] body:', JSON.stringify(req.body, null, 2));

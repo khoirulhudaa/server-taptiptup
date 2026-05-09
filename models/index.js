@@ -5,6 +5,8 @@ const Withdrawal   = require('./withdrawl');
 const Follow         = require('./follow'); // ← tambah ini
 const Milestone         = require('./milestone'); // ← tambah ini
 const BannedWord = require('./bannedWord');
+const Subathon = require('./subathon');
+const Poll = require('./poll');
 
 module.exports = {
   User,
@@ -13,5 +15,7 @@ module.exports = {
   Withdrawal,
   Follow,
   Milestone,
-  BannedWord
+  BannedWord,
+  Subathon,
+  Poll
 };
