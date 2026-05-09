@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/milestoneController');
+const widgetCtrl = require('../controllers/widgetController');
 const auth = require('../middleware/authMiddleware');
 
 router.get('/',                    auth, ctrl.getMilestones);
