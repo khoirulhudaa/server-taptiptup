@@ -226,6 +226,7 @@ exports.handleWebhook = async (req, res) => {
               message: dataDonasi.message,
               mediaUrl: dataDonasi.mediaUrl || null,   // ← dari donor
               mediaType: dataDonasi.mediaType || 'image',
+              receivedAt: new Date().toISOString(),
             };
 
             io.to(room).emit('new-donation', payload);

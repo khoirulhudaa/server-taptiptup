@@ -32,15 +32,19 @@ exports.getSettings = async (req, res) => {
 exports.updateSettings = async (req, res) => {
   try {
     const allowedFields = [
-      'minDonate', 'maxDonate', 'theme', 'primaryColor', 'textColor',
-      'animation', 'maxWidth', 'overlayPosition', 'baseDuration',
-      'extraPerAmount', 'extraDuration', 'durationTiers', 'mediaTriggers',
+      'minDonate', 'maxDonate',
+      'overlayEnabled',   // ← NEW: toggle on/off overlay
+      'customIcon',       // ← NEW: custom icon emoji atau URL
+      'showTimestamp',    // ← NEW: tampilkan timestamp di overlay
+      'theme', 'primaryColor', 'textColor',
+      'animation', 'maxWidth', 'overlayPosition',
+      'baseDuration', 'extraPerAmount', 'extraDuration',
+      'durationTiers', 'mediaTriggers',
       'soundUrl', 'customCss',
     ];
 
     console.log('[updateSettings] body:', JSON.stringify(req.body, null, 2));
 
-    // Pakai $set eksplisit — jangan spread langsung ke root
     const updateData = {};
     allowedFields.forEach(key => {
       if (req.body[key] !== undefined) updateData[key] = req.body[key];
@@ -48,7 +52,7 @@ exports.updateSettings = async (req, res) => {
 
     const setting = await OverlaySetting.findOneAndUpdate(
       { userId: req.user.id },
-      { $set: updateData },           // ← pakai $set, bukan spread
+      { $set: updateData },
       { new: true, upsert: true, runValidators: false }
     );
 
@@ -69,21 +73,18 @@ exports.updateSettings = async (req, res) => {
 
 // ============================================================
 // GET PUBLIC PROFILE — untuk halaman donasi (berdasarkan username)
-// Response menyertakan overlaySetting (key konsisten untuk SupporterPage)
 // ============================================================
 exports.getPublicProfile = async (req, res) => {
   try {
     const user = await User.findOne(
       { username: req.params.username },
-      'username _id'   // jangan kirim field sensitif
+      'username _id'
     ).lean();
 
     if (!user) return res.status(404).json({ message: 'Streamer tidak ditemukan' });
 
     const overlaySetting = await OverlaySetting.findOne({ userId: user._id }).lean();
 
-    // Sertakan keduanya: overlaySetting (camelCase baru) & OverlaySetting (PascalCase lama)
-    // agar backward compat dengan kode lama yang mungkin masih pakai OverlaySetting
     res.json({
       ...user,
       overlaySetting,
