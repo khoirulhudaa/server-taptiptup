@@ -1,3 +1,4 @@
+const { default: mongoose } = require('mongoose');
 const { User, Donation, Milestone, OverlaySetting } = require('../models');
 
 // Helper ambil user by token (untuk OBS URL pakai token seperti overlay)
