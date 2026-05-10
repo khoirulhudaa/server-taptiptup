@@ -6,69 +6,88 @@ const getUserByToken = async (token) => {
 };
 
 // ─── MILESTONES WIDGET ────────────────────────────────────────────────────────
-exports.milestones = async (req, res) => {
-  // Support dua mode: /widget/:token/milestones (OBS) dan query ?username=x
-  const user = await getUserByToken(req.params.username) 
-    || await User.findOne({ username: req.params.username }).lean();
-  if (!user) return res.status(404).send('Not found');
-
-  const milestones = await Milestone.find({ userId: user._id }).sort('order').lean();
-  const agg = await Donation.aggregate([
-    { $match: { userId: user._id, status: 'PAID' } },
-    { $group: { _id: null, total: { $sum: '$amount' } } },
-  ]);
-  const totalPaid = agg[0]?.total || 0;
-
-  const enriched = milestones.map(m => ({
-    ...m,
-    currentAmount: Math.min(totalPaid, m.targetAmount),
-    progress: Math.min(100, Math.round((totalPaid / m.targetAmount) * 100)),
-    reached: totalPaid >= m.targetAmount,
-  }));
-
-  // Serve HTML langsung (untuk OBS Browser Source)
-  res.send(renderMilestonesHTML(enriched, user.username, totalPaid));
-};
-
-// ─── LEADERBOARD WIDGET ───────────────────────────────────────────────────────
-exports.leaderboard = async (req, res) => {
-  const user = await getUserByToken(req.params.username)
-    || await User.findOne({ username: req.params.username }).lean();
-  if (!user) return res.status(404).send('Not found');
-
-  // Ambil settings leaderboard
-  const setting = await OverlaySetting.findOne({ userId: user._id }).lean();
-  const limit        = setting?.leaderboardLimit      || 10;
-  const showAmount   = setting?.leaderboardShowAmount !== false;
-  const period       = setting?.leaderboardPeriod     || 'alltime';
-
-  // Filter tanggal jika 'today'
-  const matchExtra = {};
-  if (period === 'today') {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    matchExtra.createdAt = { $gte: startOfDay };
-  }
-
-  const donors = await Donation.aggregate([
-    { $match: { userId: user._id, status: 'PAID', ...matchExtra } },
-    { $group: { _id: '$donorName', totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
-    { $sort: { totalAmount: -1 } },
-    { $limit: limit },
-    { $project: { name: '$_id', totalAmount: 1, count: 1, _id: 0 } },
-  ]);
-
-  res.send(renderLeaderboardHTML(donors, user.username, showAmount));
-};
-
-// ─── QRCODE WIDGET ────────────────────────────────────────────────────────────
 exports.qrcode = async (req, res) => {
-  const user = await getUserByToken(req.params.username)
-    || await User.findOne({ username: req.params.username }).lean();
-  if (!user) return res.status(404).send('Not found');
+  try {
+    // 1. Ambil parameter 'token' dari URL
+    const { token } = req.params;
 
-  const donateUrl = `${process.env.FRONTEND_URL || 'https://dukungin.com'}/${user.username}`;
-  res.send(renderQrCodeHTML(donateUrl, user.username));
+    // 2. Cari user berdasarkan overlayToken ATAU username
+    const user = await getUserByToken(token)
+      || await User.findOne({ username: token }).lean();
+
+    // 3. Jika tidak ketemu, berikan respon yang jelas
+    if (!user) {
+      console.log(`Widget QR: User dengan token/username ${token} tidak ditemukan`);
+      return res.status(404).send('User tidak ditemukan');
+    }
+
+    const donateUrl = `${process.env.FRONTEND_URL || 'https://dukungin.com'}/${user.username}`;
+    
+    // 4. Kirim HTML
+    res.send(renderQrCodeHTML(donateUrl, user.username));
+  } catch (error) {
+    console.error("Widget QR Error:", error);
+    res.status(500).send('Internal Server Error');
+  }
+};
+
+// LAKUKAN HAL YANG SAMA UNTUK milestones DAN leaderboard
+exports.milestones = async (req, res) => {
+  try {
+    const { token } = req.params; // Gunakan token
+    const user = await getUserByToken(token) || await User.findOne({ username: token }).lean();
+    if (!user) return res.status(404).send('Not found');
+
+    const milestones = await Milestone.find({ userId: user._id }).sort('order').lean();
+    const agg = await Donation.aggregate([
+      { $match: { userId: user._id, status: 'PAID' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    const totalPaid = agg[0]?.total || 0;
+
+    const enriched = milestones.map(m => ({
+      ...m,
+      currentAmount: Math.min(totalPaid, m.targetAmount),
+      progress: Math.min(100, Math.round((totalPaid / m.targetAmount) * 100)),
+      reached: totalPaid >= m.targetAmount,
+    }));
+
+    res.send(renderMilestonesHTML(enriched, user.username, totalPaid));
+  } catch (error) {
+    res.status(500).send('Error');
+  }
+};
+
+exports.leaderboard = async (req, res) => {
+  try {
+    const { token } = req.params; // Gunakan token
+    const user = await getUserByToken(token) || await User.findOne({ username: token }).lean();
+    if (!user) return res.status(404).send('Not found');
+
+    const setting = await OverlaySetting.findOne({ userId: user._id }).lean();
+    const limit = setting?.leaderboardLimit || 10;
+    const showAmount = setting?.leaderboardShowAmount !== false;
+    const period = setting?.leaderboardPeriod || 'alltime';
+
+    const matchExtra = {};
+    if (period === 'today') {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      matchExtra.createdAt = { $gte: startOfDay };
+    }
+
+    const donors = await Donation.aggregate([
+      { $match: { userId: user._id, status: 'PAID', ...matchExtra } },
+      { $group: { _id: '$donorName', totalAmount: { $sum: '$amount' }, count: { $sum: 1 } } },
+      { $sort: { totalAmount: -1 } },
+      { $limit: limit },
+      { $project: { name: '$_id', totalAmount: 1, count: 1, _id: 0 } },
+    ]);
+
+    res.send(renderLeaderboardHTML(donors, user.username, showAmount));
+  } catch (error) {
+    res.status(500).send('Error');
+  }
 };
 
 // ─── HTML RENDERERS ───────────────────────────────────────────────────────────
