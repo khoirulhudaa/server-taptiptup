@@ -5,7 +5,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const connectDB = require('./config/database');
-const { donationQueue } = require('./utils/donationQueue'); // ← tambahkan ini
+const { donationQueue, QueueItem } = require('./utils/donationQueue');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,15 +14,9 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
-
   socket.on('join-room', async (token) => {
     socket.join(token);
     console.log(`[Socket] Client join room: ${token}`);
-
-    // ✅ Cek apakah ada item PENDING/PROCESSING yang belum di-emit
-    // Ini handle kasus OBS buka setelah donasi masuk
-    const { QueueItem } = require('./utils/donationQueue');
-    const { donationQueue } = require('./utils/donationQueue');
 
     const pendingCount = await QueueItem.countDocuments({
       overlayToken: token,
@@ -31,20 +25,17 @@ io.on('connection', (socket) => {
 
     if (pendingCount > 0) {
       console.log(`[Socket] OBS join — ada ${pendingCount} donasi pending, lanjutkan queue`);
-      
-      // Reset PROCESSING → PENDING dulu (kalau ada yang stuck)
+
       await QueueItem.updateMany(
         { overlayToken: token, status: 'PROCESSING' },
         { $set: { status: 'PENDING' } }
       );
 
-      // Kick off processing kalau belum jalan
       if (!donationQueue.processing.get(token)) {
         donationQueue._processNext(token, io);
       }
     }
   });
-
 });
 
 app.use(cors());
@@ -80,16 +71,31 @@ app.use('/api/polls',        pollRoutes);
 
 const PORT = process.env.PORT || 5101;
 
-// ✅ connectDB dulu, baru recover queue, baru listen
 connectDB().then(async () => {
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
 
-  // Recovery queue setelah server siap
-  // Delay 2 detik agar socket.io siap menerima koneksi
   setTimeout(async () => {
     console.log('[Server] 🔄 Memulai recovery queue...');
     await donationQueue.recover(io);
   }, 2000);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('[Server] SIGTERM received — graceful shutdown...');
+
+  await QueueItem.updateMany(
+    { status: 'PROCESSING' },
+    { $set: { status: 'PENDING' } }
+  ).catch(console.error);
+
+  console.log('[Server] Queue PROCESSING → PENDING, siap restart');
+
+  server.close(() => {
+    console.log('[Server] HTTP server closed');
+    process.exit(0);
+  });
+
+  setTimeout(() => process.exit(0), 8000);
 });
