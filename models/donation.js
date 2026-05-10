@@ -32,7 +32,7 @@ const donationSchema = new mongoose.Schema(
       default: 'PENDING',
     },
     mediaUrl:  { type: String, default: null },
-    mediaType: { type: String, enum: ['image', 'video'], default: 'image' },
+    mediaType: { type: String, enum: ['image', 'video', 'youtube'], default: 'image' },
     paymentUrl: String, // Snap redirect_url
   },
   { timestamps: true }

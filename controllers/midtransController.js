@@ -5,8 +5,10 @@ const mongoose = require('mongoose');
 const { Donation, Withdrawal, User, OverlaySetting } = require('../models');
 const { filterMessage } = require('./bannedWordController');
 const subathonCtrl = require('./subathonController');
-require('dotenv').config();
 const axios = require('axios');
+const { donationQueue } = require('../utils/donationQueue');
+require('dotenv').config();
+
 
 
 // ============================================================
@@ -58,7 +60,7 @@ const verifyMidtransSignature = (orderId, statusCode, grossAmount, signatureKey)
 // CREATE DONATION
 // ============================================================
 exports.createDonation = async (req, res) => {
-  const { amount, donorName, message, userId, email } = req.body;
+  const { amount, donorName, message, userId, email, mediaUrl, mediaType } = req.body;
 
   if (!amount || !userId) {
     return res.status(400).json({ message: 'Amount dan userId wajib diisi' });
@@ -109,6 +111,8 @@ exports.createDonation = async (req, res) => {
       message: filtered || '',
       paymentUrl: snapResponse.redirect_url,
       status: 'PENDING',
+      mediaUrl: mediaUrl || null,    
+      mediaType: mediaType || 'image'
     });
 
     res.json({
@@ -127,10 +131,173 @@ exports.createDonation = async (req, res) => {
 // ============================================================
 // WEBHOOK — NOTIFIKASI TRANSAKSI
 // ============================================================
+// exports.handleWebhook = async (req, res) => {
+//   console.log('\n========== [WEBHOOK MIDTRANS MASUK] ==========');
+//   console.log('[Webhook] Body:', JSON.stringify(req.body, null, 2));
+
+//   const {
+//     order_id,
+//     status_code,
+//     gross_amount,
+//     signature_key,
+//     transaction_status,
+//     fraud_status,
+//     payment_type,
+//   } = req.body;
+
+//   // 1. Verifikasi signature
+//   const isValid = verifyMidtransSignature(order_id, status_code, gross_amount, signature_key);
+//   console.log(`[Webhook] Signature valid: ${isValid}`);
+
+//   if (!isValid) {
+//     console.warn('[Webhook] ❌ Signature tidak valid — request ditolak');
+//     return res.status(401).json({ message: 'Unauthorized' });
+//   }
+
+//   console.log(`[Webhook] order_id: ${order_id}`);
+//   console.log(`[Webhook] transaction_status: ${transaction_status}`);
+//   console.log(`[Webhook] fraud_status: ${fraud_status}`);
+//   console.log(`[Webhook] payment_type: ${payment_type}`);
+
+//   // 2. Cek apakah sukses
+//   const isSuccess =
+//     transaction_status === 'settlement' ||
+//     (transaction_status === 'capture' && fraud_status === 'accept');
+
+//   console.log(`[Webhook] isSuccess: ${isSuccess}`);
+
+//   if (isSuccess) {
+//     try {
+//       // 3. Cari donasi di DB (populate User menggantikan include Sequelize)
+//       console.log(`[Webhook] Mencari donasi dengan externalId: ${order_id}`);
+//       const dataDonasi = await Donation.findOne({ externalId: order_id }).populate('userId');
+
+//       if (!dataDonasi) {
+//         console.warn(`[Webhook] ❌ Donasi tidak ditemukan di DB untuk order_id: ${order_id}`);
+//         return res.status(200).json({ message: 'OK' });
+//       }
+
+//       console.log(`[Webhook] ✅ Donasi ditemukan: ID=${dataDonasi._id}, status saat ini=${dataDonasi.status}`);
+
+//       // 4. Idempotency check
+//       if (dataDonasi.status === 'PAID') {
+//         console.log(`[Webhook] ⚠️ Donasi sudah PAID sebelumnya — skip`);
+//         return res.status(200).json({ message: 'OK' });
+//       }
+
+//       // 5. Update status donasi + wallet streamer dalam satu MongoDB session (transaction)
+//       const session = await mongoose.startSession();
+//       session.startTransaction();
+
+//       try {
+//         dataDonasi.status = 'PAID';
+//         await dataDonasi.save({ session });
+//         console.log(`[Webhook] ✅ Status donasi diupdate ke PAID`);
+
+//         // 6. Update wallet streamer
+//         // dataDonasi.userId sudah berisi dokumen User karena .populate('userId')
+//         const streamer = dataDonasi.userId;
+//         if (!streamer) {
+//           await session.abortTransaction();
+//           session.endSession();
+//           console.warn(`[Webhook] ❌ User/streamer tidak ditemukan untuk donasi ini`);
+//           return res.status(200).json({ message: 'OK' });
+//         }
+
+//         const walletBefore = parseFloat(streamer.walletBalance || 0);
+//         // $inc lebih aman untuk concurrent update
+//         await User.findByIdAndUpdate(
+//           streamer._id,
+//           { $inc: { walletBalance: parseFloat(dataDonasi.amount) } },
+//           { session }
+//         );
+
+//         await session.commitTransaction();
+//         session.endSession();
+
+//         const walletAfter = walletBefore + parseFloat(dataDonasi.amount);
+//         console.log(`[Webhook] ✅ Wallet @${streamer.username}: Rp${walletBefore} → Rp${walletAfter}`);
+
+//         // 7. Emit socket ke overlay
+//         console.log(`[Webhook] Mencoba emit socket ke overlay token: ${streamer.overlayToken}`);
+
+//         try {
+//           const io = req.app.get('socketio');
+
+//           if (!io) {
+//             console.error('[Webhook] ❌ socketio tidak ditemukan di app');
+//           } else {
+//             const room = streamer.overlayToken;
+//             const socketsInRoom = await io.in(room).fetchSockets();
+//             console.log(`[Webhook] Jumlah client di room "${room}": ${socketsInRoom.length}`);
+
+//             if (socketsInRoom.length === 0) {
+//               console.warn(`[Webhook] ⚠️ Tidak ada client yang terkoneksi di room "${room}"`);
+//             }
+
+//             const overlaySetting = await OverlaySetting.findOne({ userId: streamer._id });
+//             const soundUrl = overlaySetting?.getSoundForAmount
+//               ? overlaySetting.getSoundForAmount(dataDonasi.amount)
+//               : (overlaySetting?.soundUrl || null);
+
+//             const payload = {
+//               donorName: dataDonasi.donorName,
+//               amount: dataDonasi.amount,
+//               message: dataDonasi.message,
+//               mediaUrl: dataDonasi.mediaUrl || null,   // ← dari donor
+//               mediaType: dataDonasi.mediaType || 'image',
+//               receivedAt: new Date().toISOString(),
+//               soundUrl
+//             };
+
+//             io.to(room).emit('new-donation', payload);
+//             const subathonResult = await subathonCtrl.handleDonationPaid(
+//               streamer._id, 
+//               dataDonasi.amount
+//             );
+//             if (subathonResult) {
+//               io.to(room).emit('subathon-updated', subathonResult.timer);
+//               console.log(`[Webhook] ✅ Subathon +${subathonResult.added}s ditambahkan`);
+//             }
+
+//             console.log(`[Webhook] ✅ Socket emit "new-donation" ke room "${room}":`, payload);
+//           }
+//         } catch (socketErr) {
+//           console.error('[Webhook] ❌ Socket emit gagal:', socketErr.message);
+//         }
+
+//       } catch (txErr) {
+//         await session.abortTransaction();
+//         session.endSession();
+//         console.error('[Webhook] ❌ Transaction gagal:', txErr);
+//       }
+
+//     } catch (err) {
+//       console.error('[Webhook] ❌ Error saat proses PAID:', err);
+//     }
+//   }
+
+//   // 8. Handle expire
+//   if (transaction_status === 'expire') {
+//     console.log(`[Webhook] Donasi expired: ${order_id}`);
+//     try {
+//       const result = await Donation.updateOne(
+//         { externalId: order_id, status: 'PENDING' },
+//         { status: 'EXPIRED' }
+//       );
+//       console.log(`[Webhook] ✅ ${result.modifiedCount} donasi diupdate ke EXPIRED`);
+//     } catch (err) {
+//       console.error('[Webhook] ❌ Gagal update EXPIRED:', err);
+//     }
+//   }
+
+//   console.log('========== [WEBHOOK SELESAI] ==========\n');
+//   res.status(200).json({ message: 'OK' });
+// };
+
 exports.handleWebhook = async (req, res) => {
   console.log('\n========== [WEBHOOK MIDTRANS MASUK] ==========');
-  console.log('[Webhook] Body:', JSON.stringify(req.body, null, 2));
-
+ 
   const {
     order_id,
     status_code,
@@ -138,157 +305,115 @@ exports.handleWebhook = async (req, res) => {
     signature_key,
     transaction_status,
     fraud_status,
-    payment_type,
   } = req.body;
-
+ 
   // 1. Verifikasi signature
   const isValid = verifyMidtransSignature(order_id, status_code, gross_amount, signature_key);
-  console.log(`[Webhook] Signature valid: ${isValid}`);
-
   if (!isValid) {
-    console.warn('[Webhook] ❌ Signature tidak valid — request ditolak');
+    console.warn('[Webhook] ❌ Signature tidak valid');
     return res.status(401).json({ message: 'Unauthorized' });
   }
-
-  console.log(`[Webhook] order_id: ${order_id}`);
-  console.log(`[Webhook] transaction_status: ${transaction_status}`);
-  console.log(`[Webhook] fraud_status: ${fraud_status}`);
-  console.log(`[Webhook] payment_type: ${payment_type}`);
-
-  // 2. Cek apakah sukses
+ 
   const isSuccess =
     transaction_status === 'settlement' ||
     (transaction_status === 'capture' && fraud_status === 'accept');
-
-  console.log(`[Webhook] isSuccess: ${isSuccess}`);
-
+ 
   if (isSuccess) {
     try {
-      // 3. Cari donasi di DB (populate User menggantikan include Sequelize)
-      console.log(`[Webhook] Mencari donasi dengan externalId: ${order_id}`);
-      const dataDonasi = await Donation.findOne({ externalId: order_id }).populate('userId');
-
-      if (!dataDonasi) {
-        console.warn(`[Webhook] ❌ Donasi tidak ditemukan di DB untuk order_id: ${order_id}`);
-        return res.status(200).json({ message: 'OK' });
-      }
-
-      console.log(`[Webhook] ✅ Donasi ditemukan: ID=${dataDonasi._id}, status saat ini=${dataDonasi.status}`);
-
-      // 4. Idempotency check
-      if (dataDonasi.status === 'PAID') {
-        console.log(`[Webhook] ⚠️ Donasi sudah PAID sebelumnya — skip`);
-        return res.status(200).json({ message: 'OK' });
-      }
-
-      // 5. Update status donasi + wallet streamer dalam satu MongoDB session (transaction)
-      const session = await mongoose.startSession();
-      session.startTransaction();
-
-      try {
-        dataDonasi.status = 'PAID';
-        await dataDonasi.save({ session });
-        console.log(`[Webhook] ✅ Status donasi diupdate ke PAID`);
-
-        // 6. Update wallet streamer
-        // dataDonasi.userId sudah berisi dokumen User karena .populate('userId')
-        const streamer = dataDonasi.userId;
-        if (!streamer) {
-          await session.abortTransaction();
-          session.endSession();
-          console.warn(`[Webhook] ❌ User/streamer tidak ditemukan untuk donasi ini`);
-          return res.status(200).json({ message: 'OK' });
-        }
-
-        const walletBefore = parseFloat(streamer.walletBalance || 0);
-        // $inc lebih aman untuk concurrent update
-        await User.findByIdAndUpdate(
-          streamer._id,
-          { $inc: { walletBalance: parseFloat(dataDonasi.amount) } },
-          { session }
-        );
-
-        await session.commitTransaction();
-        session.endSession();
-
-        const walletAfter = walletBefore + parseFloat(dataDonasi.amount);
-        console.log(`[Webhook] ✅ Wallet @${streamer.username}: Rp${walletBefore} → Rp${walletAfter}`);
-
-        // 7. Emit socket ke overlay
-        console.log(`[Webhook] Mencoba emit socket ke overlay token: ${streamer.overlayToken}`);
-
-        try {
-          const io = req.app.get('socketio');
-
-          if (!io) {
-            console.error('[Webhook] ❌ socketio tidak ditemukan di app');
-          } else {
-            const room = streamer.overlayToken;
-            const socketsInRoom = await io.in(room).fetchSockets();
-            console.log(`[Webhook] Jumlah client di room "${room}": ${socketsInRoom.length}`);
-
-            if (socketsInRoom.length === 0) {
-              console.warn(`[Webhook] ⚠️ Tidak ada client yang terkoneksi di room "${room}"`);
-            }
-
-            const overlaySetting = await OverlaySetting.findOne({ userId: streamer._id });
-            const soundUrl = overlaySetting?.getSoundForAmount
-              ? overlaySetting.getSoundForAmount(dataDonasi.amount)
-              : (overlaySetting?.soundUrl || null);
-
-            const payload = {
-              donorName: dataDonasi.donorName,
-              amount: dataDonasi.amount,
-              message: dataDonasi.message,
-              mediaUrl: dataDonasi.mediaUrl || null,   // ← dari donor
-              mediaType: dataDonasi.mediaType || 'image',
-              receivedAt: new Date().toISOString(),
-              soundUrl
-            };
-
-            io.to(room).emit('new-donation', payload);
-            const subathonResult = await subathonCtrl.handleDonationPaid(
-              streamer._id, 
-              dataDonasi.amount
-            );
-            if (subathonResult) {
-              io.to(room).emit('subathon-updated', subathonResult.timer);
-              console.log(`[Webhook] ✅ Subathon +${subathonResult.added}s ditambahkan`);
-            }
-
-            console.log(`[Webhook] ✅ Socket emit "new-donation" ke room "${room}":`, payload);
-          }
-        } catch (socketErr) {
-          console.error('[Webhook] ❌ Socket emit gagal:', socketErr.message);
-        }
-
-      } catch (txErr) {
-        await session.abortTransaction();
-        session.endSession();
-        console.error('[Webhook] ❌ Transaction gagal:', txErr);
-      }
-
-    } catch (err) {
-      console.error('[Webhook] ❌ Error saat proses PAID:', err);
-    }
-  }
-
-  // 8. Handle expire
-  if (transaction_status === 'expire') {
-    console.log(`[Webhook] Donasi expired: ${order_id}`);
-    try {
-      const result = await Donation.updateOne(
+      // 2. ATOMIC idempotency check — hanya update jika masih PENDING
+      const dataDonasi = await Donation.findOneAndUpdate(
         { externalId: order_id, status: 'PENDING' },
-        { status: 'EXPIRED' }
+        { $set: { status: 'PAID' } },
+        { new: true }
+      ).populate('userId');
+ 
+      // Null = duplikat webhook atau tidak ditemukan → skip
+      if (!dataDonasi) {
+        console.log(`[Webhook] ⚠️ Duplikat/tidak ditemukan: ${order_id} — skip`);
+        return res.status(200).json({ message: 'OK' });
+      }
+ 
+      const streamer = dataDonasi.userId;
+      if (!streamer) {
+        console.warn('[Webhook] ❌ Streamer tidak ditemukan');
+        return res.status(200).json({ message: 'OK' });
+      }
+ 
+      // 3. Update wallet — $inc atomic, aman concurrent
+      await User.findByIdAndUpdate(
+        streamer._id,
+        { $inc: { walletBalance: parseFloat(dataDonasi.amount) } }
       );
-      console.log(`[Webhook] ✅ ${result.modifiedCount} donasi diupdate ke EXPIRED`);
+ 
+      console.log(`[Webhook] ✅ Wallet @${streamer.username} +Rp${dataDonasi.amount}`);
+ 
+      // 4. Subathon — update timer (atomic di subathonController)
+      try {
+        const subathonResult = await subathonCtrl.handleDonationPaid(
+          streamer._id,
+          dataDonasi.amount
+        );
+ 
+        // Emit subathon langsung (tidak perlu queue, bukan alert visual)
+        if (subathonResult) {
+          const io = req.app.get('socketio');
+          if (io) {
+            io.to(streamer.overlayToken).emit('subathon-updated', subathonResult.timer);
+            console.log(`[Webhook] ✅ Subathon +${subathonResult.added}s`);
+          }
+        }
+      } catch (subErr) {
+        console.error('[Webhook] ❌ Subathon error:', subErr.message);
+      }
+ 
+      // 5. Ambil overlay settings untuk durasi alert
+      const overlaySetting = await OverlaySetting.findOne({ userId: streamer._id });
+      const soundUrl = overlaySetting?.getSoundForAmount
+        ? overlaySetting.getSoundForAmount(dataDonasi.amount)
+        : (overlaySetting?.soundUrl || null);
+ 
+      const displayDuration = getDisplayDuration(dataDonasi.amount, overlaySetting);
+ 
+      // 6. MASUKKAN KE QUEUE — bukan langsung emit
+      const io = req.app.get('socketio');
+      if (io && streamer.overlayToken) {
+        const payload = {
+          donorName: dataDonasi.donorName,
+          amount: dataDonasi.amount,
+          message: dataDonasi.message,
+          mediaUrl: dataDonasi.mediaUrl || null,
+          mediaType: dataDonasi.mediaType || 'image',
+          receivedAt: new Date().toISOString(),
+          soundUrl,
+          // Info antrian untuk frontend (opsional)
+          queuePosition: donationQueue.getQueueLength(streamer.overlayToken) + 1,
+        };
+ 
+        donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
+ 
+        console.log(
+          `[Webhook] ✅ Donasi "${dataDonasi.donorName}" masuk antrian overlay @${streamer.username}`
+        );
+      }
+ 
     } catch (err) {
-      console.error('[Webhook] ❌ Gagal update EXPIRED:', err);
+      console.error('[Webhook] ❌ Error:', err);
+      // Return 500 agar Midtrans retry
+      return res.status(500).json({ message: 'Internal Server Error' });
     }
   }
-
+ 
+  // Handle expire
+  if (transaction_status === 'expire') {
+    await Donation.findOneAndUpdate(
+      { externalId: order_id, status: 'PENDING' },
+      { $set: { status: 'EXPIRED' } }
+    );
+    console.log(`[Webhook] ✅ Donasi ${order_id} → EXPIRED`);
+  }
+ 
   console.log('========== [WEBHOOK SELESAI] ==========\n');
-  res.status(200).json({ message: 'OK' });
+  return res.status(200).json({ message: 'OK' });
 };
 
 // ============================================================
@@ -532,6 +657,26 @@ exports.handleFlipWebhook = async (req, res) => {
     console.error('[Flip Webhook Error]:', err);
     res.status(500).send('Error');
   }
+};
+
+const getDisplayDuration = (amount, overlaySetting) => {
+  const tiers = overlaySetting?.durationTiers || [];
+ 
+  if (tiers.length > 0) {
+    const sorted = [...tiers].sort((a, b) => b.minAmount - a.minAmount);
+    for (const tier of sorted) {
+      if (
+        amount >= tier.minAmount &&
+        (tier.maxAmount === null || amount <= tier.maxAmount)
+      ) {
+        return tier.duration * 1000; // konversi detik → ms
+      }
+    }
+  }
+ 
+  // Fallback default
+  const base = overlaySetting?.baseDuration || 8;
+  return base * 1000;
 };
 
 // ============================================================
