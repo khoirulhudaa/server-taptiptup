@@ -24,7 +24,7 @@ exports.qrcode = async (req, res) => {
     }
 
     // Perbaikan konstruksi URL agar tidak double /donate/
-    const baseUrl = process.env.FRONTEND_URL || 'https://sawer-in.vercel.app';
+    const baseUrl = process.env.FRONTEND_URL || 'https://taptiptup.vercel.app';
     const donateUrl = `${baseUrl}/donate/${user.username}`;
     
     // --- LOGIKA PEMISAH RESPONS ---
