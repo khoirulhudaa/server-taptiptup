@@ -550,3 +550,51 @@ exports.sendGhostAlert = async (req, res) => {
     return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const { 
+      search, 
+      limit = 100, 
+      page = 1 
+    } = req.query;
+
+    const query = { role: { $ne: 'superAdmin' } }; // Hanya user biasa
+
+    // Search by username or email
+    if (search) {
+      query.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const skip = (page - 1) * Number(limit);
+
+    const users = await User.find(query)
+      .select('username email role walletBalance overlayToken createdAt')
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .skip(skip)
+      .lean();
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      success: true,
+      users,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    console.error('Get All Users Error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Gagal mengambil daftar user' 
+    });
+  }
+};

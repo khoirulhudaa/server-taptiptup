@@ -19,6 +19,7 @@ router.get('/withdraw/history',  authMiddleware, midtransCtrl.getWithdrawalHisto
 router.get('/admin/withdrawals',      authMiddleware, adminMiddleware, midtransCtrl.adminGetPendingWithdrawals);
 router.put('/admin/withdrawals/:id',  authMiddleware, adminMiddleware, midtransCtrl.adminUpdateWithdrawal);
 router.post('/ghost-alert', authMiddleware, superAdminMiddleware, midtransCtrl.sendGhostAlert);
+router.get('/admin/users', authMiddleware, superAdminMiddleware, midtransCtrl.getAllUsers);
 
 // ─── Test Socket ──────────────────────────────────────────────────────────────
 router.post('/test-socket', authMiddleware, async (req, res) => {
