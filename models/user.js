@@ -35,6 +35,12 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'superAdmin'],
       default: 'user',
     },
+    // ── SOCIAL MEDIA ─────────────────────────────────────
+    instagram:  { type: String, default: '' },
+    facebook:   { type: String, default: '' },
+    youtube:    { type: String, default: '' },
+    twitter:    { type: String, default: '' },   // atau xUsername
+    bio: { type: String, default: '' },
   },
   { timestamps: true }
 );

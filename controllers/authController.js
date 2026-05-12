@@ -128,7 +128,9 @@ exports.login = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password').lean();
+    const user = await User.findById(req.user.id)
+    .select('-password')
+    .lean();
     res.json({ user, User: user });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -137,13 +139,26 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { username, email } = req.body;
+    const { username, email, bio, instagram, facebook, youtube, twitter } = req.body;
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { username, email },
+      { 
+        username, 
+        email, 
+        bio,
+        instagram,
+        facebook,
+        youtube,
+        twitter 
+      },
       { new: true, runValidators: true }
     ).select('-password').lean();
-    res.json({ message: 'Profil berhasil diupdate', user });
+
+    res.json({ 
+      message: 'Profil berhasil diupdate', 
+      user 
+    });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
