@@ -217,7 +217,7 @@ class DonationQueueManager {
       this.processing.set(overlayToken, true);
       console.log('items', item.payload)
       // ── Emit new-media-donation ke MediaShareOverlay (hanya kalau ada media) ──
-      if (item.payload.mediaUrl) {
+      if (item.payload.mediaUrl !== '' || item.payload.mediaUrl !== null) {
         io.to(overlayToken).emit('new-media-donation', item.payload);
         console.log(`[Queue] 🎬 Emit new-media-donation "${item.payload.donorName}"`);
       }
