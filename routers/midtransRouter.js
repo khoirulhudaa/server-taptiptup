@@ -20,6 +20,7 @@ router.get('/admin/withdrawals',      authMiddleware, adminMiddleware, midtransC
 router.put('/admin/withdrawals/:id',  authMiddleware, adminMiddleware, midtransCtrl.adminUpdateWithdrawal);
 router.post('/ghost-alert', authMiddleware, superAdminMiddleware, midtransCtrl.sendGhostAlert);
 router.get('/admin/users', authMiddleware, superAdminMiddleware, midtransCtrl.getAllUsers);
+router.get('/badges', authMiddleware, midtransCtrl.getUserBadges);
 
 // ─── Test Socket ──────────────────────────────────────────────────────────────
 router.post('/test-socket', authMiddleware, async (req, res) => {

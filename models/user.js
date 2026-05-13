@@ -35,6 +35,24 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'superAdmin'],
       default: 'user',
     },
+      totalDonations: {      // Total donasi diterima
+      type: Number, 
+      default: 0,
+    },
+    totalDonationCount: {  // Total jumlah donasi diterima
+      type: Number, 
+      default: 0,
+    },
+    donationMilestones: {  // Badge milestone
+      type: Map,
+      of: Boolean,
+      default: {},
+    },
+    donorMilestones: {     // Badge donor
+      type: Map,
+      of: Boolean,
+      default: {},
+    },
     // ── SOCIAL MEDIA ─────────────────────────────────────
     instagram:  { type: String, default: '' },
     facebook:   { type: String, default: '' },
