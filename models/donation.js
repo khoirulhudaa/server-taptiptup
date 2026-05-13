@@ -14,6 +14,7 @@ const donationSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    donorUserId:{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     donorName: {
       type: String,
       default: 'Anonim',
@@ -39,6 +40,7 @@ const donationSchema = new mongoose.Schema(
 );
 
 donationSchema.index({ userId: 1, createdAt: -1 });
+donationSchema.index({ donorUserId: 1, createdAt: -1 });
 donationSchema.index({ status: 1 });
 
 module.exports = mongoose.model('Donation', donationSchema);

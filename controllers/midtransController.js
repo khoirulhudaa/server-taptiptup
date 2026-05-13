@@ -68,7 +68,7 @@ const getDisplayDuration = (amount, overlaySetting) => {
 // CREATE DONATION
 // ============================================================
 exports.createDonation = async (req, res) => {
-  const { amount, donorName, message, userId, email, mediaUrl, mediaType } = req.body;
+  const { amount, donorName, message, userId, email, mediaUrl, mediaType, donorUserId } = req.body;
 
   if (!amount || !userId) {
     return res.status(400).json({ message: 'Amount dan userId wajib diisi' });
@@ -114,6 +114,7 @@ exports.createDonation = async (req, res) => {
     await Donation.create({
       externalId: orderId,
       userId,
+      donorUserId: donorUserId || null,  
       amount: Math.round(Number(amount)),
       donorName: donorName || 'Anonim',
       message: filtered || '',

@@ -97,7 +97,7 @@ exports.getMyDonations = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
 
-    const donations = await Donation.find({ donorId: req.user.id })
+    const donations = await Donation.find({ userId: req.user.id })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))
@@ -118,5 +118,41 @@ exports.getMyDonations = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// GET /api/donations/sent — riwayat donasi yang dikirim oleh user yang login
+exports.getSentDonations = async (req, res) => {
+  try {
+    const donorUserId = new mongoose.Types.ObjectId(req.user.id);
+    const { page = 1, limit = 20, status } = req.query;
+
+    const query = { donorUserId };
+    if (status && ['PAID', 'PENDING', 'EXPIRED'].includes(status)) query.status = status;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [donations, total] = await Promise.all([
+      Donation.find(query)
+        .populate('userId', 'username')  // ambil username penerima
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(),
+      Donation.countDocuments(query),
+    ]);
+
+    res.json({
+      donations,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (err) {
+    console.error('[getSentDonations] Error:', err);
+    res.status(500).json({ message: 'Server Error', error: err.message });
   }
 };
