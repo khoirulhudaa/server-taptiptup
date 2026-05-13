@@ -74,6 +74,8 @@ exports.createDonation = async (req, res) => {
     return res.status(400).json({ message: 'Amount dan userId wajib diisi' });
   }
 
+  console.log('donorUserId create:', donorUserId)
+
   const orderId = `donasi-${userId}-${Date.now()}`;
 
   try {
@@ -114,7 +116,7 @@ exports.createDonation = async (req, res) => {
     await Donation.create({
       externalId: orderId,
       userId,
-      donorUserId: donorUserId || null,  
+      donorUserId: donorUserId || null,
       amount: Math.round(Number(amount)),
       donorName: donorName || 'Anonim',
       message: filtered || '',

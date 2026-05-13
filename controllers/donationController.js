@@ -96,28 +96,49 @@ exports.getMyDonations = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
-    console.log('userId donation', req.user)
 
-    const donations = await Donation.find({ userId: req.user.id })
+    // ✅ FIX: Gunakan donorUserId sesuai model & data MongoDB
+    const donations = await Donation.find({ 
+      donorUserId: req.user.id,  // ❌ Bukan userId atau donorId
+      // Tambahan: hanya tampilkan yang sudah PAID atau PENDING
+      status: { $in: ['PAID', 'PENDING'] }
+    })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))
-      .populate('userId', 'username');
+      .populate('userId', 'username'); // Populate streamer
 
-    const total = await Donation.countDocuments({ donorId: req.user.id });
+    // ✅ FIX: Count juga pakai donorUserId
+    const total = await Donation.countDocuments({ 
+      donorUserId: req.user.id,
+      status: { $in: ['PAID', 'PENDING'] }
+    });
 
     res.json({
       donations: donations.map(d => ({
-        ...d.toObject(),
-        streamerUsername: d.userId?.username
+        id: d._id,
+        externalId: d.externalId,
+        streamerUsername: d.userId?.username || 'Unknown',
+        donorName: d.donorName,
+        amount: d.amount,
+        message: d.message,
+        status: d.status,
+        mediaUrl: d.mediaUrl,
+        mediaType: d.mediaType,
+        createdAt: d.createdAt,
+        paymentUrl: d.paymentUrl
       })),
       pagination: {
         total,
         page: Number(page),
-        totalPages: Math.ceil(total / limit)
+        limit: Number(limit),
+        totalPages: Math.ceil(total / limit),
+        hasNext: Number(page) < Math.ceil(total / limit),
+        hasPrev: Number(page) > 1
       }
     });
   } catch (err) {
+    console.error('❌ getMyDonations error:', err);
     res.status(500).json({ message: err.message });
   }
 };
