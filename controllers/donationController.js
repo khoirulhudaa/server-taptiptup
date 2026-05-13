@@ -96,6 +96,7 @@ exports.getMyDonations = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
+    console.log('userId donation', req.user)
 
     const donations = await Donation.find({ userId: req.user.id })
       .sort({ createdAt: -1 })
