@@ -3,33 +3,41 @@ const mongoose = require('mongoose');
 const subathonSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   
-  // Timer config
+  // Timer config (tetap sama)
   mode: { type: String, enum: ['countdown', 'countup'], default: 'countdown' },
-  initialSeconds: { type: Number, default: 3600 }, // 1 jam default
+  initialSeconds: { type: Number, default: 3600 },
   currentSeconds: { type: Number, default: 3600 },
   
-  // Auto-add waktu saat donasi masuk
+  // **BARU: Kelipatan Durasi Saweria Style**
   autoAddEnabled: { type: Boolean, default: true },
-  addSecondsPerAmount: { type: Number, default: 60 },  // +60 detik per Rp 10.000
-  addPerAmount: { type: Number, default: 10000 },       // per berapa rupiah
+  durationTiers: [{
+    amount: { type: Number, required: true },    // Rp 5.000, 10.000, dll
+    hours: { type: Number, default: 0 },         // Jam
+    minutes: { type: Number, default: 0 },       // Menit  
+    seconds: { type: Number, default: 0 }        // Detik
+  }],
   
-  // Max cap waktu (opsional)
+  // Max cap waktu
   maxSeconds: { type: Number, default: null },
   
-  // State
+  // State (tetap sama)
   isRunning: { type: Boolean, default: false },
   startedAt: { type: Date, default: null },
   pausedAt: { type: Date, default: null },
-  
-  // Label OBS
   title: { type: String, default: 'Subathon Timer' },
 }, { timestamps: true });
 
-// Hitung berapa detik yang harus ditambah untuk amount tertentu
-subathonSchema.methods.calcAddSeconds = function(amount) {
-  if (!this.autoAddEnabled) return 0;
-  const units = Math.floor(amount / this.addPerAmount);
-  return units * this.addSecondsPerAmount;
+// **BARU: Hitung detik dari tier**
+subathonSchema.methods.getTierSeconds = function(amount) {
+  if (!this.autoAddEnabled || !this.durationTiers?.length) return 0;
+  
+  // Cari tier yang cocok (exact match)
+  const tier = this.durationTiers.find(t => t.amount === amount);
+  if (tier) {
+    return (tier.hours * 3600) + (tier.minutes * 60) + tier.seconds;
+  }
+  
+  return 0;
 };
 
 module.exports = mongoose.model('Subathon', subathonSchema);
