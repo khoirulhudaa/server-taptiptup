@@ -55,41 +55,34 @@ router.post('/test-socket', authMiddleware, async (req, res) => {
 });
 
 router.post('/test-mediashare/send', authMiddleware, async (req, res) => {
-  const { targetUsername, donorName, mediaUrl, mediaType } = req.body;
+  const { targetUsername, donorName, amount, message, mediaUrl, mediaType } = req.body;
 
-  try {
-    const streamer = await User.findOne({ username: targetUsername }).lean();
-    if (!streamer || !streamer.overlayToken) {
-      return res.status(404).json({ message: 'Streamer tidak ditemukan atau belum punya overlay' });
-    }
-
-    const io = req.app.get('socketio');
-    if (!io) {
-      return res.status(500).json({ message: 'Socket.IO tidak tersedia' });
-    }
-
-    const payload = {
-      donorName: donorName || 'TestDonor',
-      mediaUrl: mediaUrl,
-      mediaType: mediaType || 'image',
-      receivedAt: new Date().toISOString(),
-      isTestMediaShare: true,
-    };
-
-    // ✅ FIX: Emit ke MEDIASHARE ROOM
-    io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
-    
-    console.log(`[TestMediaShare] @${req.user.username} → @${streamer.username} | ${mediaType}: ${mediaUrl}`);
-    
-    res.json({ 
-      message: 'Test mediashare berhasil dikirim!',
-      target: streamer.username,
-      room: `${streamer.overlayToken}-mediashare`  // ✅ Sudah benar di response
-    });
-  } catch (err) {
-    console.error('[TestMediaShare] Error:', err);
-    res.status(500).json({ message: 'Gagal mengirim test mediashare' });
+  const streamer = await User.findOne({ username: targetUsername }).lean();
+  if (!streamer?.overlayToken) {
+    return res.status(404).json({ message: 'Streamer tidak ditemukan' });
   }
+
+  const io = req.app.get('socketio');
+  const payload = {
+    donorName: donorName || 'TestDonor',
+    amount: amount || 25000,           // ✅ Bisa custom
+    message: message || null,          // ✅ Bisa custom  
+    mediaUrl,
+    mediaType: mediaType || 'image',
+    receivedAt: new Date().toISOString(),
+    soundUrl: null,
+    isTestMediaShare: true,
+  };
+
+  io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
+  
+  console.log(`[TestMediaShare FULL] → ${payload.donorName} | Rp${payload.amount} | ${payload.mediaUrl}`);
+  
+  res.json({ 
+    success: true,
+    message: '✅ Test MediaShare lengkap terkirim!',
+    preview: payload
+  });
 });
 
 module.exports = router;
