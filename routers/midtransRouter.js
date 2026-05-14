@@ -77,7 +77,7 @@ router.post('/test-mediashare/send', authMiddleware, async (req, res) => {
     };
 
     // Kirim langsung ke mediashare room
-    io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
+    io.to(`${streamer.overlayToken}`).emit('new-media-donation', payload);
     
     console.log(`[TestMediaShare] @${req.user.username} → @${streamer.username} | ${mediaType}: ${mediaUrl}`);
     
