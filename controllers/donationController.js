@@ -5,12 +5,16 @@ const mongoose = require('mongoose'); // pindah ke atas, jangan require dalam fu
 exports.getDonationHistory = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 50, status, startDate, endDate } = req.query;
+    const { page = 1, limit = 50, status = 'PAID', startDate, endDate } = req.query; // ✅ DEFAULT = 'PAID'
 
-    const query = { userId: new mongoose.Types.ObjectId(userId) }; // ✅ pakai 'new'
+    const query = { 
+      userId: new mongoose.Types.ObjectId(userId),
+      status: 'PAID' // ✅ HARUS PAID
+    };
 
-    if (status && ['PAID', 'PENDING', 'EXPIRED'].includes(status)) {
-      query.status = status;
+    // Override status filter - hanya PAID yang diizinkan
+    if (status && status !== 'PAID') {
+      return res.status(400).json({ message: 'Hanya donasi PAID yang tersedia' });
     }
 
     if (startDate || endDate) {
@@ -27,7 +31,7 @@ exports.getDonationHistory = async (req, res) => {
     ]);
 
     const totalPaid = await Donation.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(userId), status: 'PAID' } }, // ✅
+      { $match: { userId: new mongoose.Types.ObjectId(userId), status: 'PAID' } },
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
 
@@ -46,7 +50,7 @@ exports.getDonationHistory = async (req, res) => {
     });
   } catch (err) {
     console.error('[getDonationHistory] Error:', err);
-    res.status(500).json({ message: 'Server Error', error: err.message });
+    res.status(500).json({ message: 'Server Error' });
   }
 };
 
