@@ -76,15 +76,15 @@ router.post('/test-mediashare/send', authMiddleware, async (req, res) => {
       isTestMediaShare: true,
     };
 
-    // Kirim langsung ke mediashare room
-    io.to(`${streamer.overlayToken}`).emit('new-media-donation', payload);
+    // ✅ FIX: Emit ke MEDIASHARE ROOM
+    io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
     
     console.log(`[TestMediaShare] @${req.user.username} → @${streamer.username} | ${mediaType}: ${mediaUrl}`);
     
     res.json({ 
       message: 'Test mediashare berhasil dikirim!',
       target: streamer.username,
-      room: `${streamer.overlayToken}-mediashare`
+      room: `${streamer.overlayToken}-mediashare`  // ✅ Sudah benar di response
     });
   } catch (err) {
     console.error('[TestMediaShare] Error:', err);

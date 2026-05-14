@@ -761,7 +761,7 @@ exports.sendGhostAlert = async (req, res) => {
     } else {
       // Fallback manual
       if (payload.mediaUrl) {
-        io.to(streamer.overlayToken).emit('new-media-donation', payload);
+        io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
       }
       io.to(streamer.overlayToken).emit('new-donation', payload);
     }

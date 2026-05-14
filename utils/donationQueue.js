@@ -56,11 +56,13 @@ class DonationQueueManager {
 
       this.processing.set(overlayToken, true);
       console.log('items', item.payload)
-      // ── Emit new-media-donation ke MediaShareOverlay (hanya kalau ada media) ──
+      // Di dalam _processNext function, ganti bagian emit:
       if (item.payload.mediaUrl && item.payload.mediaUrl.trim() !== '') {
-        io.to(overlayToken).emit('new-media-donation', item.payload);
+        // ✅ Emit ke MEDIASHARE ROOM
+        io.to(`${overlayToken}-mediashare`).emit('new-media-donation', item.payload);
         console.log(`[Queue] 🎬 MediaShare "${item.payload.donorName}"`);
       } else {
+        // ✅ Emit ke OVERLAY ROOM biasa
         io.to(overlayToken).emit('new-donation', item.payload);
         console.log(`[Queue] 💜 OverlayAlert "${item.payload.donorName}"`);
       }
