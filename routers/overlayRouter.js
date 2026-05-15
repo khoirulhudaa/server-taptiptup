@@ -12,23 +12,37 @@ router.put('/settings',         authMiddleware, overlayCtrl.updateSettings);   /
 router.get('/public/:username', overlayCtrl.getPublicProfile);
 router.get('/config/:token',    overlayCtrl.getOverlaySettings);
 // ✅ Upload audio publik
+// routes/overlay.js - VERCEL SAFE VERSION
 router.post('/upload-audio', upload.single('audio'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Tidak ada file audio!' });
     }
+
+    // ✅ VERCEL SAFE URL GENERATOR
+    const hostname = req.get('host') || req.hostname || 'taptiptup.vercel.app';
+    const protocol = req.protocol || (req.get('x-forwarded-proto') === 'https' ? 'https' : 'http');
     
-    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/audio/${req.file.filename}`;
+    // ✅ FULL URL
+    const baseUrl = `${protocol}://${hostname}`;
+    const fileUrl = `${baseUrl}/uploads/audio/${req.file.filename}`;
     
+    console.log('✅ Upload success:', {
+      filename: req.file.filename,
+      size: req.file.size,
+      url: fileUrl
+    });
+
     res.json({
       success: true,
       url: fileUrl,
       filename: req.file.filename,
-      size: req.file.size
+      size: req.file.size,
+      baseUrl: baseUrl  // Debug
     });
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: 'Upload gagal!' });
+    console.error('❌ Upload error:', error);
+    res.status(500).json({ error: 'Upload gagal: ' + error.message });
   }
 });
 
