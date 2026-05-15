@@ -101,21 +101,20 @@ exports.getMyDonations = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
 
-    // ✅ FIX: Gunakan donorUserId sesuai model & data MongoDB
+    // ✅ Hanya ambil yang sudah status PAID
     const donations = await Donation.find({ 
-      donorUserId: req.user.id,  // ❌ Bukan userId atau donorId
-      // Tambahan: hanya tampilkan yang sudah PAID atau PENDING
-      status: { $in: ['PAID', 'PENDING'] }
+      donorUserId: req.user.id,
+      status: 'PAID'  // ✅ Hanya PAID
     })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))
-      .populate('userId', 'username'); // Populate streamer
+      .populate('userId', 'username');
 
-    // ✅ FIX: Count juga pakai donorUserId
+    // ✅ Count juga hanya PAID
     const total = await Donation.countDocuments({ 
       donorUserId: req.user.id,
-      status: { $in: ['PAID', 'PENDING'] }
+      status: 'PAID'  // ✅ Hanya PAID
     });
 
     res.json({
