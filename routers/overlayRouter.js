@@ -96,7 +96,7 @@ router.get('/proxy-audio', async (req, res) => {
     res.status(400).json({ 
       message: 'Invalid audio URL', 
       error: err.message,
-      hint: 'Gunakan direct MP3 link (.mp3, .wav, .ogg)'
+      hint: 'Gunakan direct MP3 link (.mp3, .wav, .ogg)',
     });
   }
 });
