@@ -77,7 +77,12 @@ const overlaySettingSchema = new mongoose.Schema(
 
     // ── Durasi bertingkat ───────────────────────────────────────────────────
     durationTiers: { type: [durationTierSchema], default: [] },
-
+     publicSounds: [{
+      url: String,
+      label: String,
+      emoji: String
+    }],
+    publicSoundDefault: String, 
     // ── Media Triggers ───────────────────────────────────────────────────────
     mediaTriggers: { type: [mediaTriggerSchema], default: [] },
     soundTiers: { type: [soundTierSchema], default: [] },
