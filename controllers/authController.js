@@ -9,11 +9,18 @@ require('dotenv').config();
 
 // Nodemailer Config
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    pass: process.env.EMAIL_PASS, // App Password BUKAN password biasa!
   },
+  pool: true, // ✅ FIX: Connection pooling
+  maxConnections: 1, // ✅ FIX: Railway limit
+  maxMessages: 5, // ✅ FIX: Rate limit
+  rateDelta: 3600000, // 1 jam
+  rateLimit: 10,
 });
 
 // Helper: Kirim Email
