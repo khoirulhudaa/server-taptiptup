@@ -7,6 +7,25 @@ const bcrypt = require('bcryptjs');
 const { sendPinEmail } = require('../utils/sendPinEmail');
 require('dotenv').config();
 
+// Nodemailer Config
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+// Helper: Kirim Email
+const sendEmail = async (to, subject, htmlContent) => {
+  await transporter.sendMail({
+    from: `"Sistem Admin Sekolah" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    html: htmlContent,
+  });
+};
+
 // ============================================================
 // HELPER: Kirim Email Reset Password
 // ============================================================
@@ -74,6 +93,38 @@ exports.register = async (req, res) => {
       duration: 5000,
     });
     console.log('4. Overlay setting created');
+
+    const verificationPin = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Kirim PIN ke Email
+    const emailTemplate = `
+    <div style="background-color: #f4f7f6; padding: 40px 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333;">
+      <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        
+        <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px;">Verifikasi Akun</h1>
+        </div>
+
+        <div style="padding: 40px 30px; text-align: center;">
+          <p style="font-size: 16px; color: #666; margin-bottom: 10px;">Halo, <strong style="color: #1e3c72;">TapTipTup</strong></p>
+          <p style="font-size: 15px; color: #888; line-height: 1.6;">Terima kasih telah bergabung. Gunakan kode PIN di bawah ini untuk menyelesaikan pendaftaran akun</p>
+          
+          <div style="margin: 30px 0; padding: 20px; background-color: #f8fafd; border: 2px dashed #cbd5e0; border-radius: 8px;">
+            <span style="font-size: 36px; font-weight: bold; color: #1e3c72; letter-spacing: 10px; font-family: monospace;">${verificationPin}</span>
+          </div>
+
+          <p style="font-size: 13px; color: #a0aec0; margin-top: 20px;">*Kode bersifat rahasi. Mohon tidak membagikan kode ini kepada siapa pun!</p>
+        </div>
+
+        <div style="background-color: #fcfcfc; padding: 20px; text-align: center; border-top: 1px solid #f0f0f0;">
+          <p style="font-size: 12px; color: #999; margin: 0;">© 2026 Sistem Admin Sekolah. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+    `;
+
+    // Kirim Email
+    await sendEmail(email, 'Konfirmasi PIN Verifikasi Sekolah', emailTemplate);
 
     return res.status(201).json({ 
       message: 'Registrasi berhasil! PIN verifikasi telah dikirim ke email kamu.' 
@@ -174,6 +225,168 @@ exports.changePassword = async (req, res) => {
     user.password = newPassword;
     await user.save(); // pre-save hook akan hash otomatis
     res.json({ message: 'Password berhasil diubah' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ============================================================
+// TAMBAHKAN ke controllers/authController.js
+// ============================================================
+
+// ── Import tambahan (pastikan sudah ada di bagian atas file) ─
+// const crypto = require('crypto');       ← sudah ada
+// const bcrypt = require('bcryptjs');     ← sudah ada
+// const { User } = require('../models'); ← sudah ada
+
+// ============================================================
+// VERIFY PIN (email verification saat register)
+// ============================================================
+exports.verifyPin = async (req, res) => {
+  try {
+    const { email, pin } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User tidak ditemukan' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: 'Akun sudah terverifikasi' });
+    }
+
+    // Cek expired
+    if (!user.verifyPinExpired || new Date() > user.verifyPinExpired) {
+      return res.status(400).json({ message: 'PIN sudah kadaluarsa. Minta PIN baru.' });
+    }
+
+    // Cek PIN
+    const isMatch = await bcrypt.compare(pin, user.verifyPin);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'PIN tidak valid' });
+    }
+
+    // Tandai verified - FIX: hapus verifyPin dan verifyPinExpired
+    user.isVerified = true;
+    user.verifyPin = undefined;  // ✅ FIXED
+    user.verifyPinExpired = undefined;
+    await user.save();
+
+    return res.json({ message: 'Akun berhasil diverifikasi! Silakan login.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ============================================================
+// RESEND PIN (kirim ulang PIN verifikasi)
+// ============================================================
+exports.resendPin = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'Email tidak terdaftar' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: 'Akun sudah terverifikasi' });
+    }
+
+    // Generate PIN baru
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedPin = await bcrypt.hash(pin, 10);
+
+    user.verifyPin = hashedPin;
+    user.verifyPinExpired = new Date(Date.now() + 5 * 60 * 1000); // 5 menit
+    await user.save();
+
+    const emailTemplate = `
+    <div style="background-color: #f4f7f6; padding: 40px 10px; font-family: 'Segoe UI', sans-serif; color: #333;">
+      <div style="max-width: 500px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px; text-align: center;">
+          <h1 style="color: #fff; margin: 0; font-size: 22px;">Kode PIN Baru</h1>
+        </div>
+        <div style="padding: 40px 30px; text-align: center;">
+          <p style="font-size: 15px; color: #888; line-height: 1.6; margin-bottom: 20px;">
+            Berikut PIN verifikasi baru kamu. Berlaku selama <strong>5 menit</strong>.
+          </p>
+          <div style="margin: 24px 0; padding: 20px; background: #f8fafd; border: 2px dashed #cbd5e0; border-radius: 8px;">
+            <span style="font-size: 36px; font-weight: bold; color: #1e3c72; letter-spacing: 10px; font-family: monospace;">${pin}</span>
+          </div>
+          <p style="font-size: 13px; color: #a0aec0;">Jangan bagikan PIN ini kepada siapapun.</p>
+        </div>
+      </div>
+    </div>`;
+
+    await sendEmail(email, 'PIN Verifikasi Baru - TapTipTup', emailTemplate);
+
+    return res.json({ message: 'PIN baru telah dikirim ke email kamu.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ============================================================
+// FORGOT PASSWORD — kirim link reset ke email
+// ============================================================
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    // Selalu return sukses agar tidak expose info user terdaftar/tidak
+    if (!user) {
+      return res.json({ message: 'Jika email terdaftar, link reset akan dikirim.' });
+    }
+
+    // Generate token reset (random hex 32 byte)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpired = new Date(Date.now() + 15 * 60 * 1000); // 15 menit
+    await user.save();
+
+    // Link reset — sesuaikan FRONTEND_URL di .env
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${email}`;
+
+    await sendResetEmail(email, resetLink);
+
+    return res.json({ message: 'Link reset password telah dikirim ke email kamu. Berlaku 15 menit.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ============================================================
+// RESET PASSWORD — set password baru dengan token
+// ============================================================
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, token, newPassword } = req.body;
+
+    // Hash token dari request, lalu cocokkan dengan yang tersimpan
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      email,
+      resetPasswordToken: hashedToken,
+      resetPasswordExpired: { $gt: new Date() }, // belum expired
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Token tidak valid atau sudah kadaluarsa.' });
+    }
+
+    // Set password baru (pre-save hook akan hash otomatis)
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpired = undefined;
+    await user.save();
+
+    return res.json({ message: 'Password berhasil direset. Silakan login dengan password baru.' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

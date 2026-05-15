@@ -53,6 +53,24 @@ const userSchema = new mongoose.Schema(
       of: Boolean,
       default: {},
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verifyPin: {
+      type: String,     // Hashed PIN
+    },
+    verifyPinExpired: {
+      type: Date,
+    },
+    
+    // ── Reset Password ────────────────────────────────────────
+    resetPasswordToken: {
+      type: String,     // Hashed token
+    },
+    resetPasswordExpired: {
+      type: Date,
+    },
     // ── SOCIAL MEDIA ─────────────────────────────────────
     instagram:  { type: String, default: '' },
     facebook:   { type: String, default: '' },
