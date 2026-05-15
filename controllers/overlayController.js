@@ -26,49 +26,6 @@ exports.getSettings = async (req, res) => {
   }
 };
 
-// ============================================================
-// UPDATE SETTINGS (upsert)
-// ============================================================
-// exports.updateSettings = async (req, res) => {
-//   try {
-//     const allowedFields = [
-//       'minDonate', 'maxDonate', 'overlayEnabled', 'customIcon', 'showTimestamp',
-//       'theme', 'primaryColor', 'textColor', 'borderColor', 'animation', 'maxWidth', 
-//       'overlayPosition', 'baseDuration', 'extraPerAmount', 'extraDuration',
-//       'durationTiers', 'mediaTriggers', 'soundUrl', 'customCss', 'highlightColor',
-//       'soundTiers', 'leaderboardShowAmount', 'quickAmounts', 'leaderboardLimit', 
-//       'leaderboardPeriod', 'publicSounds', 'publicSoundDefault'  // ✅ publicSounds!
-//     ];
-
-//     console.log('[updateSettings] body:', JSON.stringify(req.body, null, 2));
-
-//     const updateData = {};
-//     allowedFields.forEach(key => {
-//       if (req.body[key] !== undefined) updateData[key] = req.body[key];  // ✅ FIXED
-//     });
-
-//     const setting = await OverlaySetting.findOneAndUpdate(
-//       { userId: req.user.id },
-//       { $set: updateData },
-//       { new: true, upsert: true, runValidators: false }
-//     );
-
-//     // ✅ Emit ke OBS
-//     try {
-//       const io = req.app.get('socketio');
-//       const user = await User.findById(req.user.id).lean();
-//       if (io && user?.overlayToken) {
-//         io.to(user.overlayToken).emit('settings-updated', setting);
-//       }
-//     } catch (e) {}
-
-//     res.json({ message: 'Settings updated!', data: setting });
-//   } catch (err) {
-//     console.error('[updateSettings] Error:', err);
-//     res.status(400).json({ message: 'Update failed', error: err.message });
-//   }
-// };
-
 exports.updateSettings = async (req, res) => {
   try {
     const allowedFields = [
