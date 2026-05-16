@@ -34,15 +34,20 @@ exports.updateSettings = async (req, res) => {
       'overlayPosition', 'baseDuration', 'extraPerAmount', 'extraDuration',
       'durationTiers', 'mediaTriggers', 'soundUrl', 'customCss', 'highlightColor',
       'soundTiers', 'leaderboardShowAmount', 'quickAmounts', 'leaderboardLimit', 
-      'leaderboardPeriod', 'publicSounds', 'publicSoundDefault'
+      'leaderboardPeriod', 'publicSounds', 'publicSoundDefault',
+
+      // ✅ TAMBAHKAN FIELD TTS
+      'ttsEnabled',
+      'ttsRate',
+      'ttsPitch',
+      'ttsVolume'
     ];
 
     console.log('[updateSettings] body:', JSON.stringify(req.body, null, 2));
 
-    // ✅ FIXED SYNTAX ERROR
     const updateData = {};
     allowedFields.forEach(key => {
-      if (req.body[key] !== undefined) {  // ← FIXED: !== undefined
+      if (req.body[key] !== undefined) {
         updateData[key] = req.body[key];
       }
     });
