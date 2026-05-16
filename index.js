@@ -67,6 +67,8 @@ const widgetRoutes     = require('./routers/widgetRouter');
 const subathonRoutes   = require('./routers/subathonRouter');
 const pollRoutes       = require('./routers/pollRouter');
 const testAlertRoutes = require('./routers/testAlertRouter');
+const voiceRoutes = require('./routers/voiceRouter');
+
 
 app.get('/testing', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running!', node_env: process.env.NODE_ENV });
@@ -76,6 +78,7 @@ app.use('/api/overlay',      overlayRoutes);
 app.use('/api/midtrans',     midtransRoutes);
 app.use('/api/auth',         authRoutes);
 app.use('/api/donations',    donationRoutes);
+app.use('/api/voice', voiceRoutes);
 app.use('/api/follows',      followRoutes);
 app.use('/api/milestones',   milestoneRoutes);
 app.use('/api/banned-words', bannedWordRoutes);
