@@ -79,18 +79,16 @@ exports.handleDonationTier = async (req, userId, amount) => {
 
     // **EMIT SOCKET**
     const io = req.app.get('socketio');
-    if (io && addedSeconds > 0) {
-      const { User } = require('../models');
-      const user = await User.findById(userId);
-      if (user?.overlayToken) {
-        io.to(user.overlayToken).emit('donation-added-time', {
-          amount,
-          addedSeconds,
-          message: `+${formatSeconds(addedSeconds)}`,
-          tier: true
-        });
-        console.log(`✅ Tier hit: Rp${amount.toLocaleString()} → +${formatSeconds(addedSeconds)}`);
-      }
+    if (io && user?.overlayToken) {
+      // Emit subathon-updated agar widget & manager sync
+      io.to(user.overlayToken).emit('subathon-updated', timer);
+      
+      // Emit donation-added-time untuk animasi overlay (opsional)
+      io.to(user.overlayToken).emit('donation-added-time', {
+        amount,
+        addedSeconds,
+        message: `+${formatSeconds(addedSeconds)}`,
+      });
     }
 
     return { timer, addedSeconds, tierAmount: amount };

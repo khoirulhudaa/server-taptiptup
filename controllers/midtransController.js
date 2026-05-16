@@ -234,10 +234,10 @@
         // ─── 4. Subathon (non-critical) ────────────────────────────────────────
         try {
           const subathonResult = await subathonCtrl.handleDonationPaid(req, streamer._id, amount); // ✅ req ditambah
-          if (subathonResult) {
-            const io = req.app.get('socketio');
-            if (io) io.to(streamer.overlayToken).emit('subathon-updated', subathonResult.timer);
-          }
+          // if (subathonResult) {
+          //   const io = req.app.get('socketio');
+          //   if (io) io.to(streamer.overlayToken).emit('subathon-updated', subathonResult.timer);
+          // }
         } catch (subErr) {
           console.error('[Webhook] Subathon error:', subErr.message);
         }
