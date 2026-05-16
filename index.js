@@ -141,16 +141,27 @@ const publicPath = path.join(__dirname, 'public');
 
 // Serve uploads folder
 app.use('/uploads', express.static(path.join(publicPath, 'uploads'), {
-  maxAge: '1h',
-  setHeaders: (res) => {
+  maxAge: '1d',                    // cache lebih lama
+  setHeaders: (res, filePath) => {
     res.set('Access-Control-Allow-Origin', '*');
-    res.set('Cache-Control', 'public, max-age=3600');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    
+    // Penting untuk menghindari ORB
+    const ext = path.extname(filePath).toLowerCase();
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+      res.set('Content-Type', `image/${ext === '.jpg' ? 'jpeg' : ext.slice(1)}`);
+    }
+    
+    res.set('Cache-Control', 'public, max-age=86400');
   }
 }));
 
 // Optional: Serve entire public folder
 app.use(express.static(publicPath));
 
+console.log('✅ Static files dengan CORS + ORB fix sudah aktif');
+console.log('   Path:', path.join(publicPath, 'uploads'));
 console.log('✅ Static files served:');
 console.log('   → /uploads         →', path.join(publicPath, 'uploads'));
 console.log('   → /uploads/images  → Profile Pictures');
