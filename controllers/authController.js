@@ -205,7 +205,8 @@ exports.updateProfile = async (req, res) => {
       'instagram',
       'facebook',
       'youtube',
-      'twitter'
+      'twitter',
+      'profilePicture'
     ];
 
     const updateData = {};

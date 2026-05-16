@@ -76,7 +76,7 @@ exports.getPublicProfile = async (req, res) => {
   try {
     const user = await User.findOne(
       { username: req.params.username },
-      'username _id bio donateIntro instagram facebook youtube twitter followersCount followingCount' // ← TAMBAHKAN INI
+      'username _id bio donateIntro profilePicture instagram facebook youtube twitter followersCount followingCount' // ← TAMBAHKAN INI
     ).lean();
 
     if (!user) return res.status(404).json({ message: 'Streamer tidak ditemukan' });
@@ -91,6 +91,7 @@ exports.getPublicProfile = async (req, res) => {
       facebook: user.facebook || '',
       youtube: user.youtube || '',
       donateIntro: user.donateIntro || 'Support aku biar makin semangat 🚀',
+      profilePicture: user.profilePicture || '',   // ← TAMBAHKAN
       twitter: user.twitter || '',
       followersCount: user.followersCount || 0,
       followingCount: user.followingCount || 0,

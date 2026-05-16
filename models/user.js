@@ -83,6 +83,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: 120
     },
+    profilePicture: {
+      type: String,
+      default: '',           // URL gambar
+      trim: true,
+    },
   },
   { timestamps: true }
 );
