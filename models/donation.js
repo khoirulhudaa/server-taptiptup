@@ -32,6 +32,7 @@ const donationSchema = new mongoose.Schema(
       enum: ['PENDING', 'PAID', 'EXPIRED'],
       default: 'PENDING',
     },
+    startTime: { type: Number, default: 0 },
     voiceUrl: { type: String, default: null },
     mediaUrl:  { type: String, default: null },
     mediaType: { type: String, enum: ['image', 'video', 'youtube'], default: 'image' },

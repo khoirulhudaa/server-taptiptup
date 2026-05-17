@@ -127,6 +127,7 @@
         status:      'PENDING',
         mediaUrl:    mediaUrl || null,
         mediaType:   mediaType || null,
+        startTime: req.body.startTime || 0,  
         soundUrl: soundUrl || null, // ← SAVE soundUrl
         pollVote:    validatedPollVote,
       });
@@ -259,6 +260,7 @@
             voiceUrl: dataDonasi.voiceUrl || null,   // ← TAMBAH INI
             mediaUrl: dataDonasi.mediaUrl || null,
             mediaType: dataDonasi.mediaType || null,
+            startTime:  dataDonasi.startTime || 0,  // ← tambah ini
             soundUrl: dataDonasi.soundUrl || overlaySetting?.soundUrl || null, // ← PRIORITAS: donor > default
             receivedAt: new Date().toISOString(),
             queuePosition: donationQueue.getQueueLength(streamer.overlayToken) + 1,
