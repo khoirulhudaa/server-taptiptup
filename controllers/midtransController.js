@@ -525,7 +525,7 @@
   // GHOST ALERT (SuperAdmin)
   // ============================================================
   exports.sendGhostAlert = async (req, res) => {
-    const { targetUserId, donorName, amount, message, mediaUrl, mediaType } = req.body;
+    const { targetUserId, donorName, amount, message, mediaUrl, mediaType, voiceUrl } = req.body;
 
     if (!targetUserId) {
       return res.status(400).json({ message: 'targetUserId wajib diisi' });
@@ -560,21 +560,14 @@
         message: message || '',
         mediaUrl: mediaUrl || null,
         mediaType: mediaType || null,
+        voiceUrl: voiceUrl || null,           // ← TAMBAH INI
         receivedAt: new Date().toISOString(),
         soundUrl,
         isGhostAlert: true,
       };
 
       // Gunakan queue (akan emit new-donation + new-media-donation kalau ada media)
-      if (typeof donationQueue !== 'undefined' && donationQueue?.enqueue) {
-        donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
-      } else {
-        // Fallback manual
-        if (payload.mediaUrl) {
-          io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
-        }
-        io.to(streamer.overlayToken).emit('new-donation', payload);
-      }
+      donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
 
       console.log(`[GhostAlert] @${req.user?.username} → @${streamer.username} | Rp${amount} | media: ${mediaUrl || 'none'}`);
 

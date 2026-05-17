@@ -23,7 +23,8 @@ exports.sendInstantTestAlert = async (req, res) => {
     amount = 50000, 
     message = 'Ini adalah test alert dari dashboard!', 
     mediaUrl = null, 
-    mediaType = null 
+    mediaType = null,
+    voiceUrl = null,
   } = req.body;
 
   if (!targetUsername) {
@@ -63,15 +64,15 @@ exports.sendInstantTestAlert = async (req, res) => {
       soundUrl,
       isTestAlert: true,
       isGhostAlert: true,
+      voiceUrl,
     };
 
     // Kirim ke antrian agar konsisten dengan donasi normal
-    if (donationQueue && typeof donationQueue.enqueue === 'function') {
-      donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
-    } else {
-      // Fallback jika queue belum ada
-      io.to(streamer.overlayToken).emit('new-donation', payload);
+    if (!donationQueue || typeof donationQueue.enqueue !== 'function') {
+      return res.status(500).json({ message: 'Donation queue tidak tersedia' });
     }
+    
+    donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
 
     console.log(`[Instant Test Alert] Dikirim ke @${streamer.username} | Rp${amount}`);
 
