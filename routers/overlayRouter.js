@@ -21,53 +21,32 @@ router.post('/upload-voice', upload.single('voice'), async (req, res) => {
     res.status(500).json({ message: 'Upload gagal' });
   }
 });
-router.post('/upload-profile-picture', authMiddleware, upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ message: 'Tidak ada file yang diupload' });
 
-    const imageUrl = `${process.env.BASE_URL || 'https://taptiptup.vercel.app'}/uploads/${req.file.filename}`;
-
-    res.json({
-      success: true,
-      url: imageUrl,
-      message: 'Foto profil berhasil diupload'
-    });
-  } catch (err) {
-    res.status(500).json({ message: 'Upload gagal', error: err.message });
-  }
-});
-// ✅ Upload audio publik
-// routes/overlay.js - VERCEL SAFE VERSION
 router.post('/upload-audio', upload.single('audio'), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Tidak ada file audio!' });
-    }
+    if (!req.file) return res.status(400).json({ error: 'Tidak ada file audio!' });
 
-    // ✅ VERCEL SAFE URL GENERATOR
-    const hostname = req.get('host') || req.hostname || 'taptiptup.vercel.app';
-    const protocol = req.protocol || (req.get('x-forwarded-proto') === 'https' ? 'https' : 'http');
-    
-    // ✅ FULL URL
-    const baseUrl = `${protocol}://${hostname}`;
-    const fileUrl = `${baseUrl}/uploads/audio/${req.file.filename}`;
-    
-    console.log('✅ Upload success:', {
-      filename: req.file.filename,
-      size: req.file.size,
-      url: fileUrl
-    });
+    // Cloudinary langsung kasih URL permanen di req.file.path
+    const fileUrl = req.file.path;
 
     res.json({
       success: true,
-      url: fileUrl,
-      filename: req.file.filename,
-      size: req.file.size,
-      baseUrl: baseUrl  // Debug
+      url: fileUrl,  // https://res.cloudinary.com/...
     });
   } catch (error) {
-    console.error('❌ Upload error:', error);
     res.status(500).json({ error: 'Upload gagal: ' + error.message });
+  }
+});
+
+router.post('/upload-profile-picture', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Tidak ada file' });
+
+    const imageUrl = req.file.path; // URL Cloudinary langsung
+
+    res.json({ success: true, url: imageUrl });
+  } catch (err) {
+    res.status(500).json({ message: 'Upload gagal', error: err.message });
   }
 });
 
