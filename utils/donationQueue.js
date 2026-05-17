@@ -20,6 +20,27 @@ class DonationQueueManager {
     this._cleanupInterval = setInterval(() => this._cleanup(), 30 * 60 * 1000);
   }
 
+  // async enqueue(overlayToken, payload, io, displayDuration = 8000) {
+  //   if (!overlayToken || !io) return;
+
+  //   try {
+  //     await QueueItem.create({ overlayToken, payload, displayDuration, status: 'PENDING' });
+
+  //     const queueLength = await QueueItem.countDocuments({
+  //       overlayToken,
+  //       status: { $in: ['PENDING', 'PROCESSING'] },
+  //     });
+
+  //     console.log(`[Queue] "${payload.donorName}" masuk antrian — posisi: ${queueLength}`);
+
+  //     if (!this.processing.get(overlayToken)) {
+  //       this._processNext(overlayToken, io);
+  //     }
+  //   } catch (err) {
+  //     console.error('[Queue] ❌ Gagal enqueue:', err.message);
+  //   }
+  // }
+
   async enqueue(overlayToken, payload, io, displayDuration = 8000) {
     if (!overlayToken || !io) return;
 
@@ -34,7 +55,8 @@ class DonationQueueManager {
       console.log(`[Queue] "${payload.donorName}" masuk antrian — posisi: ${queueLength}`);
 
       if (!this.processing.get(overlayToken)) {
-        this._processNext(overlayToken, io);
+        // ✅ Tambah delay kecil agar tidak langsung emit
+        setTimeout(() => this._processNext(overlayToken, io), 300);
       }
     } catch (err) {
       console.error('[Queue] ❌ Gagal enqueue:', err.message);

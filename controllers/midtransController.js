@@ -489,7 +489,7 @@
           });
         }
       } else if (status === 'FAILED') {
-        const refundAmount = parseFloat(withdrawal.amount) + 5000;
+        const refundAmount = parseFloat(withdrawal.amount) + 0;
 
         if (streamer) {
           await User.findByIdAndUpdate(

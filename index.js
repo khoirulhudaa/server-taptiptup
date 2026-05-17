@@ -168,6 +168,29 @@ console.log('   → /uploads/images  → Profile Pictures');
 console.log('   → /uploads/audio   → Audio Files');
 
 // ==================== SOCKET.IO ====================
+// io.on('connection', (socket) => {
+//   socket.on('join-room', async (token) => {
+//     socket.join(token);
+//     console.log(`[Socket] Client join room: ${token}`);
+
+//     const pendingCount = await QueueItem.countDocuments({
+//       overlayToken: token,
+//       status: { $in: ['PENDING', 'PROCESSING'] },
+//     });
+
+//     if (pendingCount > 0) {
+//       console.log(`[Socket] OBS join — ada ${pendingCount} donasi pending`);
+//       await QueueItem.updateMany(
+//         { overlayToken: token, status: 'PROCESSING' },
+//         { $set: { status: 'PENDING' } }
+//       );
+//       if (!donationQueue.processing.get(token)) {
+//         donationQueue._processNext(token, io);
+//       }
+//     }
+//   });
+// });
+
 io.on('connection', (socket) => {
   socket.on('join-room', async (token) => {
     socket.join(token);
@@ -184,9 +207,13 @@ io.on('connection', (socket) => {
         { overlayToken: token, status: 'PROCESSING' },
         { $set: { status: 'PENDING' } }
       );
-      if (!donationQueue.processing.get(token)) {
-        donationQueue._processNext(token, io);
-      }
+
+      // ✅ Tambah delay 1.5s agar socket benar-benar siap
+      setTimeout(() => {
+        if (!donationQueue.processing.get(token)) {
+          donationQueue._processNext(token, io);
+        }
+      }, 1500);
     }
   });
 });
