@@ -305,7 +305,7 @@
     if (!channelCode || !accountNumber || !accountName)
       return res.status(400).json({ message: 'Data rekening tidak lengkap' });
 
-    const FEE         = 5000;
+    const FEE         = 0;
     const MIN_TARIK   = 10000;
     const MIN_BALANCE = 10000; // ✅ Konsisten 10K
     const totalDeduct = amt + FEE;
