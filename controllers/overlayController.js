@@ -36,9 +36,15 @@ exports.updateSettings = async (req, res) => {
       'soundTiers', 'leaderboardShowAmount', 'quickAmounts', 'leaderboardLimit', 
       'leaderboardPeriod', 'publicSounds', 'publicSoundDefault',
       'ttsEnabled', 'ttsRate', 'ttsPitch', 'ttsVolume',
+      'feeBearer',
 
-      // ✅ TAMBAHKAN INI
-      'feeBearer'
+      // ✅ FIELD DURASI BARU (WAJIB DITAMBAHKAN)
+      'alertBaseDuration',
+      'alertExtraPerAmount',
+      'alertExtraDuration',
+      'mediaShareBaseDuration',
+      'mediaShareExtraPerAmount',
+      'mediaShareExtraDuration',
     ];
 
     console.log('[updateSettings] Body diterima:', JSON.stringify(req.body, null, 2));
@@ -108,6 +114,12 @@ exports.getPublicProfile = async (req, res) => {
       feeBearer: overlaySetting?.feeBearer || 'streamer',
       OverlaySetting: overlaySetting, // untuk kompatibilitas lama
       publicSounds: overlaySetting?.publicSounds || [],
+      alertBaseDuration: overlaySetting?.alertBaseDuration,
+      alertExtraPerAmount: overlaySetting?.alertExtraPerAmount,
+      alertExtraDuration: overlaySetting?.alertExtraDuration,
+      mediaShareBaseDuration: overlaySetting?.mediaShareBaseDuration,
+      mediaShareExtraPerAmount: overlaySetting?.mediaShareExtraPerAmount,
+      mediaShareExtraDuration: overlaySetting?.mediaShareExtraDuration,
     });
   } catch (err) {
     console.error(err);
