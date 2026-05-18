@@ -156,169 +156,6 @@
     }
   };
 
-  // exports.handleWebhook = async (req, res) => {
-  //   console.log('\n========== [WEBHOOK MIDTRANS MASUK] ==========');
-  
-  //   const { order_id, status_code, gross_amount, signature_key, transaction_status, fraud_status } = req.body;
-  
-  //   const isValid = verifyMidtransSignature(order_id, status_code, gross_amount, signature_key);
-  //   if (!isValid) {
-  //     console.warn('[Webhook] Signature tidak valid');
-  //     return res.status(401).json({ message: 'Unauthorized' });
-  //   }
-  
-  //   const isSuccess =
-  //     transaction_status === 'settlement' ||
-  //     (transaction_status === 'capture' && fraud_status === 'accept');
-  
-  //   if (isSuccess) {
-  //     const session = await mongoose.startSession();
-  //     session.startTransaction();
-  
-  //     try {
-  //       // 1. Update donation status → PAID
-  //       const dataDonasi = await Donation.findOneAndUpdate(
-  //         { externalId: order_id, status: 'PENDING' },
-  //         { $set: { status: 'PAID' } },
-  //         { new: true, session }
-  //       ).populate('userId');
-  
-  //       if (!dataDonasi) {
-  //         console.log(`[Webhook] Duplikat/tidak ditemukan: ${order_id} — skip`);
-  //         await session.commitTransaction();
-  //         return res.status(200).json({ message: 'OK' });
-  //       }
-  
-  //       const streamer = dataDonasi.userId;
-  //       if (!streamer) {
-  //         console.warn('[Webhook] Streamer tidak ditemukan');
-  //         await session.commitTransaction();
-  //         return res.status(200).json({ message: 'OK' });
-  //       }
-  
-  //       // 2. Update wallet + milestones streamer (atomic)
-  //       const amount = parseFloat(dataDonasi.amount);
-  //       const amountInput = parseFloat(dataDonasi.amount);           // nominal asli
-  //       const streamerReceive = parseFloat(dataDonasi.streamerReceive || dataDonasi.amount);
-  //       const milestones = ['10k', '50k', '100k', '500k', '1jt'];
-  //       const milestoneUpdates = {};
-
-  //       for (const milestone of milestones) {
-  //         const milestoneAmount = parseInt(milestone.replace('k', '000').replace('jt', '000000'));
-  //         if (amountInput >= milestoneAmount) {
-  //           milestoneUpdates[`donationMilestones.${milestone}`] = true;
-  //         }
-  //       }
-  
-  //       await User.findByIdAndUpdate(
-  //         streamer._id,
-  //         {
-  //           $inc: { 
-  //             walletBalance: streamerReceive,     // ← Yang streamer benar-benar terima
-  //             totalDonations: amountInput,        // Catat nominal donasi asli
-  //             totalDonationCount: 1 
-  //           },
-  //           $set: milestoneUpdates,
-  //         },
-  //         { session }
-  //       );
-  
-  //       console.log(`[Webhook] @${streamer.username} +Rp${streamerReceive} (dari donasi Rp${amountInput})`);
-  
-  //       await session.commitTransaction();
-  //       session.endSession();
-  
-  //       // ─── 3. PROSES VOTE POLL (non-critical, di luar session) ───────────────
-  //       if (dataDonasi.pollVote?.pollId && dataDonasi.pollVote?.optionId) {
-  //         try {
-  //           const poll = await Poll.findOne({
-  //             _id:    dataDonasi.pollVote.pollId,
-  //             status: 'active',
-  //           });
-  
-  //           if (poll) {
-  //             const option = poll.options.id(dataDonasi.pollVote.optionId);
-  //             if (option) {
-  //               option.votes += 1;
-  //               await poll.save();
-  
-  //               // Emit update ke OBS widget + dashboard
-  //               const io = req.app.get('socketio');
-  //               if (io && streamer?.overlayToken) {
-  //                 io.to(streamer.overlayToken).emit('poll-updated', poll);
-  //               }
-  
-  //               console.log(`[Webhook] Vote masuk: "${option.text}" pada poll "${poll.question}"`);
-  //             }
-  //           }
-  //         } catch (pollErr) {
-  //           console.error('[Webhook] Poll vote error:', pollErr.message);
-  //         }
-  //       }
-  
-  //       // ─── 4. Subathon (non-critical) ────────────────────────────────────────
-  //       try {
-  //         const subathonResult = await subathonCtrl.handleDonationPaid(req, streamer._id, amount); // ✅ req ditambah
-  //         if (subathonResult) {
-  //           const io = req.app.get('socketio');
-  //           if (io) {
-  //             io.to(streamer.overlayToken).emit('subathon-updated', subathonResult.timer || subathonResult);
-  //           }
-  //         }
-  //       } catch (subErr) {
-  //         console.error('[Webhook] Subathon error:', subErr.message);
-  //       }
-  
-  //       // ─── 5. Overlay queue ──────────────────────────────────────────────────
-  //       const overlaySetting = await OverlaySetting.findOne({ userId: streamer._id });
-  //       const soundUrl = overlaySetting?.getSoundForAmount
-  //         ? overlaySetting.getSoundForAmount(amount)
-  //         : (overlaySetting?.soundUrl || null);
-  //       const displayDuration = getDisplayDuration(amount, overlaySetting);
-  
-  //       const io = req.app.get('socketio');
-  //       if (io && streamer.overlayToken) {
-  //         const payload = {
-  //           donorName: dataDonasi.donorName,
-  //           amount: amount,
-  //           message: dataDonasi.message,
-  //           voiceUrl: dataDonasi.voiceUrl || null,   // ← TAMBAH INI
-  //           mediaUrl: dataDonasi.mediaUrl || null,
-  //           mediaType: dataDonasi.mediaType || null,
-  //           startTime:  dataDonasi.startTime || 0,  // ← tambah ini
-  //           soundUrl: dataDonasi.soundUrl || overlaySetting?.soundUrl || null, // ← PRIORITAS: donor > default
-  //           receivedAt: new Date().toISOString(),
-  //           queuePosition: donationQueue.getQueueLength(streamer.overlayToken) + 1,
-  //         };
-  //         donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
-  //         console.log(`[Webhook] Donasi "${dataDonasi.donorName}" masuk antrian overlay @${streamer.username}`);
-  //       }
-  
-  //     } catch (err) {
-  //       await session.abortTransaction();
-  //       session.endSession();
-  //       console.error('[Webhook] Error:', err);
-  //       return res.status(500).json({ message: 'Internal Server Error' });
-  //     }
-  //   }
-  
-  //   if (transaction_status === 'expire') {
-  //     await Donation.findOneAndUpdate(
-  //       { externalId: order_id, status: 'PENDING' },
-  //       { $set: { status: 'EXPIRED' } }
-  //     );
-  //     console.log(`[Webhook] Donasi ${order_id} => EXPIRED`);
-  //   }
-  
-  //   console.log('========== [WEBHOOK SELESAI] ==========\n');
-  //   return res.status(200).json({ message: 'OK' });
-  // };
-
-  // ============================================================
-  // REQUEST WITHDRAWAL
-  // ============================================================
-
-// controllers/midtransController.js
   exports.handleWebhook = async (req, res) => {
     console.log('\n========== [WEBHOOK MIDTRANS MASUK] ==========');
 
@@ -455,6 +292,17 @@
             queuePosition: donationQueue.getQueueLength(streamer.overlayToken) + 1,
           };
           donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
+          // ─── Voice Note Overlay (room terpisah) ──────────────────────
+          if (dataDonasi.voiceUrl && io && streamer.overlayToken) {
+            io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', {
+              donorName:  dataDonasi.donorName,
+              amount:     nominalInput,
+              message:    dataDonasi.message,
+              voiceUrl:   dataDonasi.voiceUrl,
+              receivedAt: new Date().toISOString(),
+            });
+            console.log(`[VoiceOverlay] Emitted ke room ${streamer.overlayToken}-voice`);
+          }
         }
 
       } catch (err) {
