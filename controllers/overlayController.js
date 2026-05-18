@@ -35,15 +35,13 @@ exports.updateSettings = async (req, res) => {
       'durationTiers', 'mediaTriggers', 'soundUrl', 'customCss', 'highlightColor',
       'soundTiers', 'leaderboardShowAmount', 'quickAmounts', 'leaderboardLimit', 
       'leaderboardPeriod', 'publicSounds', 'publicSoundDefault',
+      'ttsEnabled', 'ttsRate', 'ttsPitch', 'ttsVolume',
 
-      // ✅ TAMBAHKAN FIELD TTS
-      'ttsEnabled',
-      'ttsRate',
-      'ttsPitch',
-      'ttsVolume'
+      // ✅ TAMBAHKAN INI
+      'feeBearer'
     ];
 
-    console.log('[updateSettings] body:', JSON.stringify(req.body, null, 2));
+    console.log('[updateSettings] Body diterima:', JSON.stringify(req.body, null, 2));
 
     const updateData = {};
     allowedFields.forEach(key => {
@@ -55,7 +53,7 @@ exports.updateSettings = async (req, res) => {
     const setting = await OverlaySetting.findOneAndUpdate(
       { userId: req.user.id },
       { $set: updateData },
-      { new: true, upsert: true, runValidators: false }
+      { new: true, upsert: true, runValidators: true }
     );
 
     // Emit ke OBS
@@ -67,7 +65,13 @@ exports.updateSettings = async (req, res) => {
       }
     } catch (e) {}
 
-    res.json({ message: 'Settings updated!', data: setting });
+    console.log('[updateSettings] Berhasil disimpan:', setting.feeBearer);
+
+    res.json({ 
+      message: 'Settings updated!', 
+      data: setting,
+      feeBearer: setting.feeBearer 
+    });
   } catch (err) {
     console.error('[updateSettings] Error:', err);
     res.status(400).json({ message: 'Update failed', error: err.message });
