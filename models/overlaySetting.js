@@ -102,6 +102,12 @@ const overlaySettingSchema = new mongoose.Schema(
       default: [10000, 25000, 50000, 100000, 250000]
     },
 
+    alertDurationPerThousand:     { type: Number, default: 10 },     // detik per Rp1.000 untuk alert biasa
+    mediaShareDurationPerThousand:{ type: Number, default: 15 },    // detik per Rp1.000 untuk Media Share
+
+    // (opsional) tetap boleh pakai tier kalau mau advanced
+    durationTiers: { type: [durationTierSchema], default: [] },
+
     // ── Text-to-Speech ──────────────────────────────────────────────────────
     ttsEnabled: { type: Boolean, default: false },
     ttsRate: { type: Number, default: 1.0 },
@@ -127,6 +133,39 @@ overlaySettingSchema.methods.getDuration = function (amount) {
   }
   const extras = Math.floor(amount / this.extraPerAmount);
   return this.baseDuration + extras * this.extraDuration;
+};
+
+overlaySettingSchema.methods.getAlertDuration = function (amount) {
+  if (!amount || amount <= 0) return 8000;
+
+  // Prioritas 1: Simple Kelipatan
+  if (this.alertDurationPerThousand) {
+    const seconds = Math.ceil(amount / 1000) * this.alertDurationPerThousand;
+    return seconds * 1000; // ke milidetik
+  }
+
+  // Fallback ke tier lama
+  if (this.durationTiers?.length > 0) {
+    const sorted = [...this.durationTiers].sort((a, b) => b.minAmount - a.minAmount);
+    for (const tier of sorted) {
+      if (amount >= tier.minAmount && (tier.maxAmount === null || amount <= tier.maxAmount)) {
+        return tier.duration * 1000;
+      }
+    }
+  }
+
+  return 8000; // default 8 detik
+};
+
+overlaySettingSchema.methods.getMediaShareDuration = function (amount) {
+  if (!amount || amount <= 0) return 12000;
+
+  if (this.mediaShareDurationPerThousand) {
+    const seconds = Math.ceil(amount / 1000) * this.mediaShareDurationPerThousand;
+    return seconds * 1000;
+  }
+
+  return this.getAlertDuration(amount); // fallback
 };
 
 overlaySettingSchema.methods.getMediaTriggerForAmount = function (amount) {
