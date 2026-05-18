@@ -56,48 +56,63 @@
     const {
       amount, donorName, message, userId, email,
       mediaUrl, mediaType, donorUserId, soundUrl,
-      pollVote, voiceUrl   // { pollId, optionId } — opsional, dari /poll/:username
+      pollVote, voiceUrl
     } = req.body;
-  
+
     if (!amount || !userId) {
       return res.status(400).json({ message: 'Amount dan userId wajib diisi' });
     }
-  
+
+    const nominal = Math.round(Number(amount)); // Nominal yang diinput donor
     const orderId = `donasi-${userId}-${Date.now()}`;
-  
+
     try {
-      const streamer = await User.findById(userId).lean();
+      const streamer = await User.findById(userId);
+      const overlaySetting = await OverlaySetting.findOne({ userId }) || {};
+      const feeBearer = overlaySetting.feeBearer || 'streamer';
+
+      const percentFee = Math.round(nominal * 0.025); // 2.5%
+
+      let grossAmount;        // Yang dibayar donor ke Midtrans
+      let streamerWillReceive; // Yang streamer dapat
+
+      if (feeBearer === 'donor') {
+        grossAmount = nominal + percentFee;        // Donor bayar lebih
+        streamerWillReceive = nominal;
+      } else {
+        grossAmount = nominal;
+        streamerWillReceive = nominal - percentFee; // Streamer tanggung 2.5%
+      }
+
       const streamerUsername = streamer?.username || userId;
-  
+
       const parameter = {
         transaction_details: {
           order_id: orderId,
-          gross_amount: Math.round(Number(amount)),
+          gross_amount: grossAmount,
         },
         customer_details: {
           first_name: donorName || 'Anonim',
           email: email || 'guest@mail.com',
         },
-        item_details: [
-          {
-            id: 'DONASI',
-            price: Math.round(Number(amount)),
-            quantity: 1,
-            name: `Donasi untuk @${streamerUsername}`,
-          },
-        ],
+        item_details: [{
+          id: 'DONASI',
+          price: grossAmount,
+          quantity: 1,
+          name: `Donasi untuk @${streamerUsername}`,
+        }],
         callbacks: {
           finish:  `${BASE_URL}/donation/success?username=${streamerUsername}`,
           error:   `${BASE_URL}/donation/failed?username=${streamerUsername}`,
           pending: `${BASE_URL}/donation/pending?username=${streamerUsername}`,
         },
       };
-  
+
       const snapResponse = await snap.createTransaction(parameter);
-  
+
       const { blocked, filtered } = await filterMessage(userId, message);
       if (blocked) {
-        return res.status(400).json({ message: 'Pesanmu mengandung kata yang tidak diizinkan oleh streamer ini.' });
+        return res.status(400).json({ message: 'Pesan mengandung kata terlarang.' });
       }
   
       // Validasi pollVote jika ada
@@ -119,9 +134,11 @@
         externalId:  orderId,
         userId,
         donorUserId: donorUserId || null,
-        amount:      Math.round(Number(amount)),
+        // amount:      Math.round(Number(amount)),
         donorName:   donorName || 'Anonim',
         message:     filtered || '',
+        amount: nominal,                    // nominal input donor
+        grossAmount,
         voiceUrl: voiceUrl || null,  // ← TAMBAH INI
         paymentUrl:  snapResponse.redirect_url,
         status:      'PENDING',
@@ -181,12 +198,14 @@
   
         // 2. Update wallet + milestones streamer (atomic)
         const amount = parseFloat(dataDonasi.amount);
+        const amountInput = parseFloat(dataDonasi.amount);           // nominal asli
+        const streamerReceive = parseFloat(dataDonasi.streamerReceive || dataDonasi.amount);
         const milestones = ['10k', '50k', '100k', '500k', '1jt'];
         const milestoneUpdates = {};
-  
+
         for (const milestone of milestones) {
           const milestoneAmount = parseInt(milestone.replace('k', '000').replace('jt', '000000'));
-          if (amount >= milestoneAmount) {
+          if (amountInput >= milestoneAmount) {
             milestoneUpdates[`donationMilestones.${milestone}`] = true;
           }
         }
@@ -194,13 +213,17 @@
         await User.findByIdAndUpdate(
           streamer._id,
           {
-            $inc: { walletBalance: amount, totalDonations: amount, totalDonationCount: 1 },
+            $inc: { 
+              walletBalance: streamerReceive,     // ← Yang streamer benar-benar terima
+              totalDonations: amountInput,        // Catat nominal donasi asli
+              totalDonationCount: 1 
+            },
             $set: milestoneUpdates,
           },
           { session }
         );
   
-        console.log(`[Webhook] Wallet @${streamer.username} +Rp${amount}`);
+        console.log(`[Webhook] @${streamer.username} +Rp${streamerReceive} (dari donasi Rp${amountInput})`);
   
         await session.commitTransaction();
         session.endSession();

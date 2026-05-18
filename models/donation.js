@@ -36,6 +36,10 @@ const donationSchema = new mongoose.Schema(
     voiceUrl: { type: String, default: null },
     mediaUrl:  { type: String, default: null },
     mediaType: { type: String, enum: ['image', 'video', 'youtube'], default: 'image' },
+    grossAmount: { type: Number },
+    streamerReceive: { type: Number },
+    feeBearer: { type: String, enum: ['streamer', 'donor'] },
+    percentFee: { type: Number },
     paymentUrl: String, // Snap redirect_url
   },
   { timestamps: true }
