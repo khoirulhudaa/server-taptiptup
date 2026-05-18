@@ -31,23 +31,26 @@ exports.updateSettings = async (req, res) => {
     const allowedFields = [
       'minDonate', 'maxDonate', 'overlayEnabled', 'customIcon', 'showTimestamp',
       'theme', 'primaryColor', 'textColor', 'borderColor', 'animation', 'maxWidth', 
-      'overlayPosition', 'baseDuration', 'extraPerAmount', 'extraDuration',
-      'durationTiers', 'mediaTriggers', 'soundUrl', 'customCss', 'highlightColor',
-      'soundTiers', 'leaderboardShowAmount', 'quickAmounts', 'leaderboardLimit', 
-      'leaderboardPeriod', 'publicSounds', 'publicSoundDefault',
-      'ttsEnabled', 'ttsRate', 'ttsPitch', 'ttsVolume',
-      'feeBearer',
+      'overlayPosition', 
 
-      // ✅ FIELD DURASI BARU (WAJIB DITAMBAHKAN)
+      // Field Durasi Lama
+      'baseDuration', 'extraPerAmount', 'extraDuration', 'durationTiers',
+
+      // ✅ FIELD DURASI BARU — WAJIB DITAMBAHKAN
       'alertBaseDuration',
       'alertExtraPerAmount',
       'alertExtraDuration',
       'mediaShareBaseDuration',
       'mediaShareExtraPerAmount',
       'mediaShareExtraDuration',
-    ];
 
-    console.log('[updateSettings] Body diterima:', JSON.stringify(req.body, null, 2));
+      // Field lainnya
+      'mediaTriggers', 'soundUrl', 'customCss', 'highlightColor',
+      'soundTiers', 'leaderboardShowAmount', 'quickAmounts', 'leaderboardLimit', 
+      'leaderboardPeriod', 'publicSounds', 'publicSoundDefault',
+      'ttsEnabled', 'ttsRate', 'ttsPitch', 'ttsVolume',
+      'feeBearer'
+    ];
 
     const updateData = {};
     allowedFields.forEach(key => {
@@ -62,22 +65,11 @@ exports.updateSettings = async (req, res) => {
       { new: true, upsert: true, runValidators: true }
     );
 
-    // Emit ke OBS
-    try {
-      const io = req.app.get('socketio');
-      const user = await User.findById(req.user.id).lean();
-      if (io && user?.overlayToken) {
-        io.to(user.overlayToken).emit('settings-updated', setting);
-      }
-    } catch (e) {}
-
-    console.log('[updateSettings] Berhasil disimpan:', setting.feeBearer);
-
     res.json({ 
       message: 'Settings updated!', 
-      data: setting,
-      feeBearer: setting.feeBearer 
+      data: setting 
     });
+
   } catch (err) {
     console.error('[updateSettings] Error:', err);
     res.status(400).json({ message: 'Update failed', error: err.message });
