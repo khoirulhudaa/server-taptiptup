@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "start": "node index.js",
+    "postinstall": "npx playwright install chromium --with-deps 2>/dev/null || npm i -g chromium-browser 2>/dev/null || echo 'Skipping chromium install'"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,7 @@
     "crypto": "^1.0.1",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "fs": "^0.0.1-security",
     "jsonwebtoken": "^9.0.3",
     "midtrans-client": "^1.4.3",
     "mongoose": "^9.6.1",

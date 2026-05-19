@@ -1,0 +1,13 @@
+[build]
+image = "node:22"
+build = "npm install"
+
+[deploy]
+restart = "always"
+start = "npm start"
+
+[vars]
+CHROME_PATH = "/usr/bin/chromium"
+
+[metadata]
+name = "TapTipTup WhatsApp Bot"
