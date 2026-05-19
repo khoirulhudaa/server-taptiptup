@@ -6,8 +6,8 @@ const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/database');
 const { donationQueue, QueueItem } = require('./utils/donationQueue');
-const { initWhatsApp, getIsReady } = require('./config/whatsapp');
-
+const { initTelegram, sendNotification } = require('./config/telegram');
+const telegramQueue = { sendWithdrawalNotification, sendDonationNotification } = require('./utils/telegramNotification');
 const updateAvailableBalance = require('./cron/updateAvailableBalance');
 
 // Jalankan setiap 1 menit
@@ -132,7 +132,7 @@ connectDB().then(async () => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
 
-  initWhatsApp();
+  initTelegram();
   console.log('[Server] 🔄 WhatsApp bot dimulai...');
 
   setTimeout(async () => {

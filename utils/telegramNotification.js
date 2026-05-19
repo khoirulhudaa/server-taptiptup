@@ -33,37 +33,39 @@
 // };
 
 
-// utils/whatsappNotification.js → rename ke telegramNotification.js
-const { sendTelegramNotification } = require('../config/telegram');
+// utils/telegramNotification.js
+const { sendNotification } = require('../config/telegram');
 
 const formatRupiah = (num) => new Intl.NumberFormat('id-ID').format(Math.round(num));
 
 const sendWithdrawalNotification = async (data) => {
   const message = `🔔 *PERMINTAAN PENARIKAN*
 
-👤 Streamer: @${data.username}
-💰 Jumlah: Rp ${formatRupiah(data.amount)}
-🏦 Metode: ${data.paymentMethod}
-🏛️ Bank: ${data.channelCode}
-🔢 Rekening: ${data.accountNumber}
-👤 Nama: ${data.accountName}
+👤 *Streamer:* @${data.username}
+💰 *Jumlah:* Rp ${formatRupiah(data.amount)}
+🏦 *Metode:* ${data.paymentMethod}
+🏛️ *Bank:* ${data.channelCode}
+🔢 *Rekening:* ${data.accountNumber}
+👤 *Nama:* ${data.accountName}
 
-⏰ ${new Date().toLocaleString('id-ID')}`;
+⏰ *Waktu:* ${new Date().toLocaleString('id-ID')}`;
 
-  return await sendTelegramNotification(message);
+  console.log('[TG] Mengirim notifikasi withdrawal...');
+  return await sendNotification(message);
 };
 
 const sendDonationNotification = async (data) => {
   const message = `💖 *DONASI MASUK*
 
-👤 Donor: ${data.donorName}
-💰 Jumlah: Rp ${formatRupiah(data.amount)}
-🎁 Untuk: @${data.streamerUsername}
-${data.message ? `💬 Pesan: ${data.message}` : ''}
+👤 *Donor:* ${data.donorName}
+💰 *Jumlah:* Rp ${formatRupiah(data.amount)}
+🎁 *Untuk:* @${data.streamerUsername}
+${data.message ? `💬 *Pesan:* ${data.message}` : ''}
 
-⏰ ${new Date().toLocaleString('id-ID')}`;
+⏰ *Waktu:* ${new Date().toLocaleString('id-ID')}`;
 
-  return await sendTelegramNotification(message);
+  console.log('[TG] Mengirim notifikasi donasi...');
+  return await sendNotification(message);
 };
 
 module.exports = {

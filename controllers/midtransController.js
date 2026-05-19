@@ -6,6 +6,7 @@
   const { filterMessage } = require('./bannedWordController');
   const subathonCtrl = require('./subathonController');
   const { donationQueue } = require('../utils/donationQueue');
+  const { sendWithdrawalNotification } = require('../utils/telegramNotification');
   require('dotenv').config();
 
   const isProduction = process.env.NODE_ENV === 'production';
