@@ -1,7 +1,6 @@
 // cron/updateAvailableBalance.js
 const mongoose = require('mongoose');
-const Donation = require('../models/Donation');
-const { User } = require('../models');
+const { User, Donation } = require('../models');
 
 /**
  * Cron ini dijalankan setiap 1 jam / 1 menit
