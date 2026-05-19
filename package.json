@@ -29,6 +29,7 @@
     "mysql2": "^3.20.0",
     "nodemailer": "^8.0.7",
     "path": "^0.12.7",
+    "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "sequelize": "^6.37.8",
     "socket.io": "^4.8.3",
