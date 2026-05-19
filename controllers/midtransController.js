@@ -716,7 +716,13 @@ exports.getAvailableBalance = async (req, res) => {
       };
 
       // Gunakan queue (akan emit new-donation + new-media-donation kalau ada media)
-      donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
+      if (payload.voiceUrl && !payload.mediaUrl) {
+        io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', payload);
+      } else if (payload.mediaUrl) {
+        io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
+      } else {
+        io.to(streamer.overlayToken).emit('new-donation', payload);
+      }
 
       console.log(`[GhostAlert] @${req.user?.username} → @${streamer.username} | Rp${amount} | media: ${mediaUrl || 'none'}`);
 
