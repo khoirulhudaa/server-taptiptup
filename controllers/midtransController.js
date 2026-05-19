@@ -196,13 +196,14 @@
           return res.status(200).json({ message: 'OK' });
         }
 
-        // === PERBAIKAN UTAMA: Gunakan streamerReceive ===
-        const nominalInput = parseFloat(dataDonasi.amount);           // Nominal yang diinput donor
-        const streamerReceive = parseFloat(dataDonasi.streamerReceive || dataDonasi.amount); // Yang streamer benar-benar dapat
+        const nominalInput = parseFloat(dataDonasi.amount);
+        const streamerReceive = parseFloat(dataDonasi.streamerReceive || dataDonasi.amount);
 
-        console.log(`[FEE WEBHOOK] Nominal Input: Rp${nominalInput} | Streamer Terima: Rp${streamerReceive} | FeeBearer: ${dataDonasi.feeBearer}`);
+        console.log(`[FEE WEBHOOK] Nominal Input: Rp${nominalInput} | Streamer Terima: Rp${streamerReceive}`);
 
-        // 2. Update wallet + milestones streamer (atomic)
+        // 2. Update wallet -Langsung 增加 tapi dgn availableAt = 1 hari kemudian
+        const availableAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // +24 jam
+
         const milestones = ['10k', '50k', '100k', '500k', '1jt'];
         const milestoneUpdates = {};
 
@@ -213,12 +214,26 @@
           }
         }
 
+        // Update donation dgn availableAt
+        await Donation.findByIdAndUpdate(
+          dataDonasi._id,
+          {
+            $set: {
+              availableAt: availableAt,
+              isAvailable: false
+            }
+          },
+          { session }
+        );
+
+        // Langsung update walletBalance tapi availableBalance belum dihitung
+        // Nanti ada job/cron yang update availableBalance setelah 1 hari
         await User.findByIdAndUpdate(
           streamer._id,
           {
             $inc: { 
-              walletBalance: streamerReceive,     // ← INI YANG PENTING
-              totalDonations: nominalInput,       // Catat nominal donasi asli (untuk statistik)
+              walletBalance: streamerReceive,
+              totalDonations: nominalInput,
               totalDonationCount: 1 
             },
             $set: milestoneUpdates,
@@ -226,7 +241,7 @@
           { session }
         );
 
-        console.log(`[Webhook] Wallet @${streamer.username} +Rp${streamerReceive} (dari donasi Rp${nominalInput})`);
+        console.log(`[Webhook] Wallet @${streamer.username} +Rp${streamerReceive} (belum available, perlu tunggu 1 hari)`);
 
         await session.commitTransaction();
         session.endSession();
@@ -315,6 +330,88 @@
     return res.status(200).json({ message: 'OK' });
   };
 
+  exports.checkAvailableBalance = async (req, res) => {
+  try {
+    // Cari semua donasi PAID yang sudah melewati 1 hari tapi belum diupdate
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    const pendingDonations = await Donation.find({
+      status: 'PAID',
+      isAvailable: false,
+      availableAt: { $lte: new Date() }  // Jika availableAt <= sekarang
+    }).populate('userId');
+
+    console.log(`[CheckAvailableBalance] Menemukan ${pendingDonations.length} donasi yang akan tersedia`);
+
+    for (const donation of pendingDonations) {
+      const streamer = donation.userId;
+      if (!streamer) continue;
+
+      const receiveAmount = parseFloat(donation.streamerReceive || donation.amount);
+      
+      // Update availableBalance streamer
+      await User.findByIdAndUpdate(
+        streamer._id,
+        { $inc: { availableBalance: receiveAmount } }
+      );
+
+      // Tandai donasi sudah available
+      await Donation.findByIdAndUpdate(
+        donation._id,
+        { $set: { isAvailable: true } }
+      );
+
+      console.log(`[AvailableBalance] @${streamer.username} +Rp${receiveAmount} menjadi available`);
+    }
+
+    res.json({ 
+      message: `Berhasil update ${pendingDonations.length} donasi`,
+      count: pendingDonations.length
+    });
+  } catch (err) {
+    console.error('[CheckAvailableBalance] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Endpoint buat user cek sendiri
+exports.getAvailableBalance = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    
+    //强制刷新availableBalance dari donasi yang sudah expired 1 hari
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    // Get sum of available donations
+    const availableDonations = await Donation.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          status: 'PAID',
+          isAvailable: true
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$streamerReceive' }
+        }
+      }
+    ]);
+
+    const computedAvailable = availableDonations[0]?.total || 0;
+
+    res.json({
+      walletBalance: user.walletBalance,
+      availableBalance: computedAvailable,  // Pakai yang dihitung ulang
+      pendingBalance: user.walletBalance - computedAvailable
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
   exports.requestWithdrawal = async (req, res) => {
     const { amount, paymentMethod, channelCode, accountNumber, accountName } = req.body;
     const userId = req.user.id;
@@ -330,43 +427,66 @@
     if (!channelCode || !accountNumber || !accountName)
       return res.status(400).json({ message: 'Data rekening tidak lengkap' });
 
-    const FEE         = 5000;
-    const MIN_TARIK   = 10000;
-    const MIN_BALANCE = 10000; // ✅ Konsisten 10K
-    const totalDeduct = amt + FEE;
+    // HAPUS ADMIN_FEE - hanya 2.5% yang dipotong saat donasi masuk
+    // Saat withdraw, JUMLAH YANG DIMINTA adalah yang diambil
     const referenceNo = `wd-${userId}-${Date.now()}`;
 
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-      // ✅ 1. CEK SALDO SEKARANG
-      const existingUser = await User.findById(userId).session(session);
-      const currentBalance = parseFloat(existingUser.walletBalance || 0);
+      // 1. CEK SALDO AVAILABLE (yang sudah lebih dari 1 hari)
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      const availableDonations = await Donation.aggregate([
+        {
+          $match: {
+            userId: new mongoose.Types.ObjectId(userId),
+            status: 'PAID',
+            isAvailable: true  // Hanya yang sudah available
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$streamerReceive' }
+          }
+        }
+      ]);
 
-      if (currentBalance < MIN_BALANCE) {
+      const availableBalance = availableDonations[0]?.total || 0;
+
+      // Alternatif: cek dari wallet availableBalance field
+      // const user = await User.findById(userId);
+      // const availableBalance = user.availableBalance || 0;
+
+      if (availableBalance < 10000) {
         await session.abortTransaction();
         session.endSession();
         return res.status(400).json({
-          message: `Saldo minimum Rp ${MIN_BALANCE.toLocaleString('id-ID')}`,
+          message: `Saldo tersedia minimal Rp 10.000. Saat ini: Rp ${availableBalance.toLocaleString('id-ID')}`,
         });
       }
 
-      if (currentBalance < totalDeduct) {
+      if (amt > availableBalance) {
         await session.abortTransaction();
         session.endSession();
         return res.status(400).json({
-          message: `Saldo tidak cukup. Dibutuhkan Rp ${totalDeduct.toLocaleString('id-ID')} (Rp ${amt.toLocaleString('id-ID')} + fee Rp ${FEE.toLocaleString('id-ID')})`,
+          message: `Saldo tidak cukup. Saldo tersedia: Rp ${availableBalance.toLocaleString('id-ID')}`,
         });
       }
 
-      // ✅ 2. POTONG SALDO & CREATE WITHDRAWAL (ATOMIC)
-      const user = await User.findOneAndUpdate(
-        { _id: userId, walletBalance: { $gte: totalDeduct } },
-        { $inc: { walletBalance: -totalDeduct } },
-        { new: true, session }
+      // 2. POTONG availableBalance & CREATE WITHDRAWAL (TIDAK ADA FEE SAAT WITHDRAW)
+      // Tidak ada admin fee yang dipotong!
+      
+      // Update availableBalance - kurangi
+      await User.findByIdAndUpdate(
+        userId,
+        { $inc: { availableBalance: -amt } },
+        { session }
       );
 
+      // Create withdrawal record
       await Withdrawal.create([{
         userId,
         amount: amt,

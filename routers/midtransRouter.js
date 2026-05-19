@@ -159,4 +159,7 @@ router.post('/replay-donation/:donationId', authMiddleware, async (req, res) => 
   }
 });
 
+router.get('/available-balance', authMiddleware, midtransCtrl.getAvailableBalance);
+router.post('/check-available', authMiddleware, midtransCtrl.checkAvailableBalance);
+
 module.exports = router;

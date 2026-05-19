@@ -35,7 +35,9 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'superAdmin'],
       default: 'user',
     },
-      totalDonations: {      // Total donasi diterima
+    walletBalance: { type: Number, default: 0 },           // Total saldo
+    availableBalance: { type: Number, default: 0 }, 
+    totalDonations: {      // Total donasi diterima
       type: Number, 
       default: 0,
     },
