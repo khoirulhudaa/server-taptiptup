@@ -229,15 +229,26 @@ const sendTracker = {
 const initWhatsApp = () => {
   console.log('[WA] Starting initWhatsApp...');
   
-  if (client) {
-    console.log('[WA] Client sudah ada, skip re-init');
+  // ✅ FIX: Destroy client lama kalau tidak ready
+  if (client && !isReady) {
+    console.log('[WA] Client ada tapi tidak ready, destroy dan recreate...');
+    try {
+      client.destroy().catch(() => {});
+    } catch {}
+    client = null;
+    qrCodeData = null;
+    isReady = false;
+  }
+
+  // ⬆️ Skip kalau sudah ready
+  if (client && isReady) {
+    console.log('[WA] Client ready, skip re-init');
     return client;
   }
 
   const chromiumPath = getChromiumPath();
-  console.log('[WA] Chromium path:', chromiumPath || 'NOT FOUND - akan coba tanpa指定path');
+  console.log('[WA] Chromium path:', chromiumPath || 'NOT FOUND');
 
-  // Lewati session jika bermasalah
   let sessionPath = './wa_session';
   try {
     fs.mkdirSync(sessionPath, { recursive: true });
@@ -253,7 +264,7 @@ const initWhatsApp = () => {
       }),
       puppeteer: {
         headless: true,
-        executablePath: chromiumPath || undefined,
+        executablePath: chromiumPath || undefined,  // ✅ FIX DI SINI
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox', 
@@ -271,16 +282,9 @@ const initWhatsApp = () => {
           '--hide-scrollbars',
           '--metrics-recording-only',
           '--mute-audio',
-          '--disable-features=TranslateUI,BlinkGenPropertyTrees',
-          '--disable-ipc-flooding-protection',
-          '--disable-renderer-backgrounding',
-          '--enable-features=NetworkService,NetworkServiceInProcess',
-          // Railway specific
+          // Railway extra args
           '--disable-web-security',
-          '--unsafe-http-runtime-Origins=*',
-          '--allow-running-insecure-content',
           '--ignore-certificate-errors',
-          '--ignore-ssl-errors',
         ]
       }
     });
@@ -289,8 +293,7 @@ const initWhatsApp = () => {
       qrCodeData = qr;
       isReady = false;
       qrcode.generate(qr, { small: true });
-      console.log('📱 QR Code generated! Scan dalam 30 detik!');
-      console.log('📱 QR String first 100 chars:', qr.substring(0, 100));
+      console.log('📱 QR Code generated!');
     });
 
     client.on('ready', () => {
@@ -299,59 +302,24 @@ const initWhatsApp = () => {
       console.log('✅ WhatsApp TERHUBUNG!');
     });
 
-    client.on('authenticated', () => {
-      console.log('🔐 WA Authenticated!');
-    });
-
-    client.on('loading_screen', (percent, msg) => {
-      console.log('⏳ Loading:', percent, msg);
-    });
-
     client.on('disconnected', (reason) => {
       isReady = false;
       console.log('❌ WA disconnected:', reason);
-      // Auto reconnect dengan delay
-      setTimeout(() => {
-        if (!isReady) {
-          console.log('[WA] Attempting reconnect...');
-          client = null;
-          initWhatsApp();
-        }
-      }, 10000);
+      setTimeout(() => { client = null; initWhatsApp(); }, 10000);
     });
 
     client.on('auth_failure', (msg) => {
       isReady = false;
       console.log('❌ Auth failure:', msg);
-      // Hapus session dan try again
-      try {
-        fs.rmSync('./wa_session', { recursive: true, force: true });
-      } catch {}
-      setTimeout(() => {
-        client = null;
-        initWhatsApp();
-      }, 5000);
+      try { fs.rmSync('./wa_session', { recursive: true, force: true }); } catch {}
+      setTimeout(() => { client = null; initWhatsApp(); }, 5000);
     });
 
-    client.on('change_state', (state) => {
-      console.log('[WA] State change:', state);
-    });
-
-    client.on('new_session', () => {
-      console.log('[WA] New session created!');
-    });
-
-    console.log('[WA] Initializing client...');
-    client.initialize()
-      .then(() => console.log('[WA] Client initialized successfully'))
-      .catch(err => {
-        console.error('[WA] Init error:', err.message);
-        console.error('[WA] Stack:', err.stack);
-      });
+    console.log('[WA] Initializing...');
+    client.initialize().catch(err => console.error('[WA] Init error:', err.message));
 
   } catch (err) {
     console.error('[WA] Setup error:', err.message);
-    console.error('[WA] Stack:', err.stack);
   }
 
   return client;
