@@ -33,7 +33,7 @@ const donationSchema = new mongoose.Schema(
       default: 'PENDING',
     },
     // Field baru: kapan donasi ini available untuk ditarik
-    availableAt: { type: Date, default: null },  // null = belum available
+    availableAt: { type: Date, default: null },  // ⬅️ PASTIKAN ADA
     startTime: { type: Number, default: 0 },
     voiceUrl: { type: String, default: null },
     mediaUrl:  { type: String, default: null },
