@@ -138,34 +138,125 @@
 //   canSendMessage, incrementSendCount, getSendStats, sendMessage
 // };
 
-
-// config/whatsapp.js - SIMPLE MOCK VERSION
+// config/whatsapp.js - VERSI FINAL FIXED
+const { 
+  makeWASocket, 
+  useMultiFileAuthState, 
+  fetchLatestBaileysVersion,
+  delay 
+} = require('baileys');
 const fs = require('fs');
 
-// Kita buat dummy dulu
+let sock = null;
 let isReady = false;
-let qrCode = null;
+let pairingCode = null;
+let qrString = null;
 
 const sendTracker = { date: null, count: 0, MAX_PER_DAY: 50 };
 
 const initWhatsApp = async () => {
-  console.log('[WA] WhatsApp config loaded (SIMULATION)');
+  console.log('[WA] Starting Baileys WhatsApp...');
   
-  // ✅ NANTI KAMU BISA PAKE BAKEYS YANG BENAR!
-  // Untuk sekarang, simulate already connected
-  
-  // Uncomment ini kalau sudah ada session:
-  // const { makeWASocket, useMultiFileAuthState } = require('baileys');
-  // ... (kode Baileys yang tadi)
-  
-  // Return null = WhatsApp belum aktif
-  console.log('[WA] WhatsApp: TIDAK AKTIF (belum terhubung)');
-  console.log('[WA] Untuk mengaktifkan, butuh pairing manual');
-  
-  return null;
+  if (sock && isReady) {
+    console.log('[WA] Already connected!');
+    return sock;
+  }
+
+  try {
+    const sessionDir = './wa_session';
+    if (!fs.existsSync(sessionDir)) {
+      fs.mkdirSync(sessionDir, { recursive: true });
+    }
+
+    const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+    const { version } = await fetchLatestBaileysVersion();
+
+    sock = makeWASocket({
+      version,
+      auth: state,
+      browser: ['Dukungin', 'Chrome', '120'],
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', (update) => {
+      const { connection, code, qr } = update;
+      
+      if (code && !isReady) {
+        pairingCode = code;
+        console.log('\n========================================');
+        console.log('🎯 6-DIGIT PAIRING CODE:');
+        console.log('========================================');
+        console.log('  ' + code.replace(/(.{1})/g, '$1 ').trim() + '  ');
+        console.log('========================================');
+        console.log('📱 WhatsApp → Settings → Linked Devices');
+        console.log('   → Link with number → Masukkan kode di atas');
+        console.log('⏰ Berlaku 30 detik!\n');
+      }
+      
+      if (qr && !qrString) {
+        qrString = qr;
+        console.log('[WA] QR link ready!');
+        console.log('[WA] Link: https://wa.me/settings/linked_devices#' + qr);
+      }
+      
+      if (connection === 'open') {
+        isReady = true;
+        pairingCode = null;
+        qrString = null;
+        console.log('\n✅✅ WhatsApp TERHUBUNG! ✅✅\n');
+      }
+      
+      if (connection === 'close') {
+        console.log('[WA] Disconnected');
+        isReady = false;
+      }
+    });
+
+    console.log('[WA] Waiting 15s...');
+    for (let i = 0; i < 15; i++) {
+      await delay(1000);
+    }
+
+    console.log('[WA] Waiting for pairing...');
+    for (let i = 0; i < 120; i++) {
+      await delay(1000);
+      
+      if (pairingCode) {
+        console.log(`[WA] ⏰ KODE: ${pairingCode} - MASUKKAN SEKARANG!`);
+      }
+      if (isReady) {
+        console.log('[WA] ✅ Connected!');
+        break;
+      }
+    }
+
+    if (!isReady) {
+      console.log('[WA] Timeout');
+    }
+    
+    return sock;
+    
+  } catch (err) {
+    console.error('[WA] Error:', err.message);
+    return null;
+  }
 };
 
-// exports
+// Send message wrapper
+const sendMessage = async (phone, text) => {
+  if (!sock || !isReady) return false;
+  try {
+    const jid = phone.replace('@s.whatsapp.net', '') + '@s.whatsapp.net';
+    await sock.sendMessage(jid, { text });
+    return true;
+  } catch (e) {
+    console.log('[WA] Send error:', e.message);
+    return false;
+  }
+};
+
+// Exports
 const canSendMessage = () => {
   const today = new Date().toISOString().split('T')[0];
   if (sendTracker.date !== today) {
@@ -175,7 +266,9 @@ const canSendMessage = () => {
   return sendTracker.count < sendTracker.MAX_PER_DAY;
 };
 
-const incrementSendCount = () => sendTracker.count++;
+const incrementSendCount = () => {
+  sendTracker.count++;
+};
 
 const getSendStats = () => ({
   sent: sendTracker.count,
@@ -183,20 +276,15 @@ const getSendStats = () => ({
   max: sendTracker.MAX_PER_DAY,
 });
 
-const getClient = () => null;
-const getIsReady = () => false;  // ⬅️ FALSE dulu
-const getQRCode = () => null;
+const getClient = () => sock;
+const getIsReady = () => isReady;
+const getQRCode = () => qrString;
 
-const waitUntilReady = (ms = 5000) => new Promise((resolve) => {
-  // Langsung reject karena belum konek
-  setTimeout(() => resolve(false), ms);
+const waitUntilReady = (ms = 30000) => new Promise((resolve, reject) => {
+  if (isReady) return resolve(true);
+  const t = setTimeout(() => reject(new Error('WA timeout')), ms);
+  const i = setInterval(() => { if (isReady) { clearTimeout(t); clearInterval(i); resolve(true); } }, 1000);
 });
-
-const sendMessage = async (phone, text) => {
-  console.log(`[WA] Mock send to ${phone}: ${text}`);
-  incrementSendCount();
-  return true;
-};
 
 module.exports = { 
   initWhatsApp, getClient, getIsReady, getQRCode, waitUntilReady,
