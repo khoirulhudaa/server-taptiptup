@@ -1,4 +1,4 @@
-// config/whatsapp.js - VERSI AKHIR
+// config/whatsapp.js - FIXED QR DISPLAY
 const { 
   makeWASocket, 
   useMultiFileAuthState, 
@@ -10,12 +10,12 @@ const path = require('path');
 
 let sock = null;
 let isReady = false;
-let pairingCode = null;
+let qrCode = null;
 
 const sendTracker = { date: null, count: 0, MAX_PER_DAY: 50 };
 
 const initWhatsApp = async () => {
-  console.log('[WA] Starting Baileys...');
+  console.log('[WA] Starting Baileys with QR...');
   
   if (sock && isReady) {
     console.log('[WA] Already connected!');
@@ -31,7 +31,7 @@ const initWhatsApp = async () => {
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     const { version } = await fetchLatestBaileysVersion();
 
-    console.log('[WA] Creds:', state.creds?.me?.id ? 'EXISTS' : 'EMPTY');
+    console.log('[WA] Has creds?', !!state.creds?.me?.id);
 
     sock = makeWASocket({
       version,
@@ -41,71 +41,53 @@ const initWhatsApp = async () => {
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', async (update) => {
-      const { connection, code } = update;
-      console.log('[WA] Update:', connection);
+    sock.ev.on('connection.update', (update) => {
+      const { connection, qr } = update;
       
-      if (code && !isReady) {
-        console.log('\n🎯 PAIRING CODE:', code);
-        console.log('📱 WhatsApp → Settings → Linked Devices\n');
-        pairingCode = code;
+      console.log('[WA] Conn:', connection);
+      
+      // ✅ PRINT QR CODE!
+      if (qr) {
+        qrCode = qr;
+        console.log('\n========================================');
+        console.log('📱 QR CODE (scan dalam 30 detik):');
+        console.log('========================================');
+        console.log(qr);  // ⬅️ PRINT HERE!
+        console.log('========================================');
+        console.log('📱 Atau buka WhatsApp → Settings → Linked Devices\n');
       }
       
       if (connection === 'open') {
         isReady = true;
-        console.log('✅ WhatsApp TERHUBUNG!');
-      } else if (connection === 'close') {
-        isReady = false;
-        console.log('❌ WA disconnected');
+        qrCode = null;
+        console.log('\n✅✅ WhatsApp TERHUBUNG! ✅✅\n');
       }
     });
 
-    // ✅ TUNGGU WEBSOCKET OPEN LEBIH LAMA
-    console.log('[WA] Waiting for WebSocket...');
-    for (let i = 0; i < 30; i++) {
-      await delay(500);
-      if (sock.ws && sock.ws.readyState === 1) {
-        console.log('[WA] ✅ WebSocket OPEN after', (i+1)/2, 'seconds');
-        break;
-      }
-      if (i === 29) {
-        console.log('[WA] ❌ WebSocket timeout!');
-        return null;
-      }
+    console.log('[WA] Waiting 15s...');
+    for (let i = 0; i < 15; i++) {
+      await delay(1000);
     }
 
-    // ✅ BARU REQUEST PAIRING KALO GAK ADA CREDS
-    if (!state.creds?.me?.id) {
-      console.log('[WA] Requesting pairing code...');
-      try {
-        // ⬅️ TAMBAH DELAY LEBIH LAMA!
-        await delay(5000);
-        
-        const code = await sock.requestPairingCode('6289513093406');
-        console.log('\n🎯 PAIRING CODE:', code);
-        console.log('📱 WhatsApp → Settings → Linked Devices → Link a device');
-        console.log('📝 Masukkan kode ini:', code, '\n');
-        pairingCode = code;
-      } catch (e) {
-        console.log('[WA] Pairing error:', e.message);
-      }
+    if (!state.creds?.me?.id && !isReady) {
+      console.log('[WA] Asking for QR...');
     }
 
-    // ✅ TUNGGU SAMPAI TERHUBUNG
+    console.log('[WA] Waiting for connection...');
     for (let i = 0; i < 120; i++) {
       await delay(1000);
-      if (isReady) {
-        console.log('[WA] ✅ Connected after', i, 'seconds');
-        break;
+      
+      if (qrCode) {
+        console.log(`[WA] still waiting... ${i}s - QR ready! Scan now!`);
       }
-      if (i % 15 === 0) {
-        console.log('[WA] Still waiting...', i, 'seconds');
+      if (isReady) {
+        console.log('[WA] ✅ Connected!', i, 's');
+        break;
       }
     }
 
-    if (!isReady && pairingCode) {
-      console.log('\n📱 MASUKKAN KODEINI KE WHATSAPP SEKARANG!');
-      console.log('🎯 KODE:', pairingCode, '\n');
+    if (isReady) {
+      console.log('✅✅ WhatsApp SIAP! ✅✅');
     }
     
     return sock;
@@ -136,7 +118,7 @@ const getSendStats = () => ({
 
 const getClient = () => sock;
 const getIsReady = () => isReady;
-const getQRCode = () => pairingCode;
+const getQRCode = () => qrCode;
 
 const waitUntilReady = (ms = 120000) => new Promise((resolve, reject) => {
   if (isReady) return resolve(true);
