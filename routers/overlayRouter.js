@@ -106,4 +106,106 @@ router.get('/proxy-audio', async (req, res) => {
 });
 
 
+// Tambah sementara di midtransRouter.js atau overlayRouter.js
+// HAPUS setelah dijalankan sekali!
+
+router.post('/admin/migrate-balance', async (req, res) => {
+  try {
+    const { Donation, User } = require('../models');
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    // 1. Reset semua availableBalance ke 0
+    await User.updateMany({}, { $set: { availableBalance: 0 } });
+    console.log('[Migrate] Reset semua availableBalance ke 0');
+
+    // 2. Tandai donasi lama (> 24 jam, belum punya availableAt) sebagai isAvailable = true
+    const oldDonations = await Donation.updateMany(
+      {
+        status: 'PAID',
+        availableAt: null,
+        createdAt: { $lte: oneDayAgo },
+      },
+      {
+        $set: {
+          isAvailable: true,
+          availableAt: new Date(oneDayAgo), // tandai sudah diproses
+        }
+      }
+    );
+    console.log(`[Migrate] Tandai ${oldDonations.modifiedCount} donasi lama sebagai available`);
+
+    // 3. Tandai donasi yang punya availableAt dan sudah lewat
+    const readyDonations = await Donation.updateMany(
+      {
+        status: 'PAID',
+        isAvailable: { $ne: true },
+        availableAt: { $lte: now },
+      },
+      { $set: { isAvailable: true } }
+    );
+    console.log(`[Migrate] Tandai ${readyDonations.modifiedCount} donasi ready sebagai available`);
+
+    // 4. Donasi baru (< 24 jam) pastikan isAvailable = false
+    const newDonations = await Donation.updateMany(
+      {
+        status: 'PAID',
+        availableAt: { $gt: now }, // availableAt masih di masa depan
+      },
+      { $set: { isAvailable: false } }
+    );
+    console.log(`[Migrate] ${newDonations.modifiedCount} donasi baru ditandai belum available`);
+
+    // 5. Hitung ulang availableBalance per user dari donasi isAvailable = true
+    const result = await Donation.aggregate([
+      {
+        $match: {
+          status: 'PAID',
+          isAvailable: true,
+        }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          total: {
+            // Pakai streamerReceive kalau ada, fallback ke amount
+            $sum: {
+              $cond: [
+                { $gt: ['$streamerReceive', 0] },
+                '$streamerReceive',
+                '$amount'
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    let updatedCount = 0;
+    for (const item of result) {
+      await User.findByIdAndUpdate(item._id, {
+        $set: { availableBalance: Math.round(item.total) }
+      });
+      updatedCount++;
+    }
+
+    console.log(`[Migrate] Updated ${updatedCount} user availableBalance`);
+
+    res.json({
+      success: true,
+      message: 'Migrasi selesai',
+      stats: {
+        oldDonationsMarked:   oldDonations.modifiedCount,
+        readyDonationsMarked: readyDonations.modifiedCount,
+        newDonationsPending:  newDonations.modifiedCount,
+        usersUpdated:         updatedCount,
+      }
+    });
+  } catch (err) {
+    console.error('[Migrate] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 module.exports = router;
