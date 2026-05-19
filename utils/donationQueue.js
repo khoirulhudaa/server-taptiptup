@@ -74,18 +74,23 @@ class DonationQueueManager {
 
       // 4. Emit ke room yang tepat
       if (payload.voiceUrl && !payload.mediaUrl) {
-        // Voice donation — jangan emit ke overlay biasa
-        // (sudah di-emit langsung ke room -voice di webhook)
+        // Voice-only donation → skip main overlay (sudah di-emit langsung ke room -voice di webhook)
         await QueueItem.findByIdAndUpdate(item._id, { $set: { status: 'DONE' } });
-        
+
         const remaining = await QueueItem.countDocuments({ overlayToken, status: 'PENDING' });
         console.log(`[Queue] 🎙️ Voice-only "${payload.donorName}" skip main overlay | Sisa: ${remaining}`);
-        
+
         const nextDelay = 500;
         setTimeout(() => this._processNext(overlayToken, io), nextDelay);
         return;
+
+      } else if (payload.isMediaShare && payload.mediaUrl) {
+        // ✅ Media Share → emit ke room -mediashare dengan event new-media-donation
+        io.to(`${overlayToken}-mediashare`).emit('new-media-donation', payload);
+        console.log(`[Queue] 🎬 MediaShare → "${payload.donorName}" Rp${payload.amount}`);
+
       } else {
-        // 💜 Regular overlay
+        // 💜 Regular alert overlay
         io.to(overlayToken).emit('new-donation', payload);
         console.log(`[Queue] 💜 OverlayAlert → "${payload.donorName}" Rp${payload.amount}`);
       }

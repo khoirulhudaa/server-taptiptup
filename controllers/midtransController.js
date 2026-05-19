@@ -318,6 +318,7 @@
             startTime:    dataDonasi.startTime || 0,
             soundUrl:     dataDonasi.soundUrl || soundUrl,  // prioritas: pilihan donor > default overlay
             receivedAt:   new Date().toISOString(),
+            isMediaShare: !!dataDonasi.mediaUrl,
             queuePosition: donationQueue.getQueueLength(streamer.overlayToken) + 1,
           };
           donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
