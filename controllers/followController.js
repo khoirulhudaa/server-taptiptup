@@ -115,7 +115,7 @@ exports.discoverStreamers = async (req, res) => {
 
     const [users, total] = await Promise.all([
       User.find(searchQuery)
-        .select('username email createdAt')
+        .select('username email profilePicture createdAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
