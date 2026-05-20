@@ -680,6 +680,7 @@ exports.getAvailableBalance = async (req, res) => {
     }
   };
 
+  // ─── GHOST ALERT ───────────────────────────────────────────────────────────────
   exports.sendGhostAlert = async (req, res) => {
     const { targetUserId, donorName, amount, message, mediaUrl, mediaType, voiceUrl, startTime } = req.body;
 
