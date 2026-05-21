@@ -101,40 +101,40 @@ exports.register = async (req, res) => {
     });
     console.log('4. Overlay setting created');
 
-    const verificationPin = Math.floor(100000 + Math.random() * 900000).toString();
+    // const verificationPin = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Kirim PIN ke Email
-    const emailTemplate = `
-    <div style="background-color: #f4f7f6; padding: 40px 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333;">
-      <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+    // // Kirim PIN ke Email
+    // const emailTemplate = `
+    // <div style="background-color: #f4f7f6; padding: 40px 10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333;">
+    //   <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
         
-        <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px;">Verifikasi Akun</h1>
-        </div>
+    //     <div style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px; text-align: center;">
+    //       <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px;">Verifikasi Akun</h1>
+    //     </div>
 
-        <div style="padding: 40px 30px; text-align: center;">
-          <p style="font-size: 16px; color: #666; margin-bottom: 10px;">Halo, <strong style="color: #1e3c72;">TapTipTup</strong></p>
-          <p style="font-size: 15px; color: #888; line-height: 1.6;">Terima kasih telah bergabung. Gunakan kode PIN di bawah ini untuk menyelesaikan pendaftaran akun</p>
+    //     <div style="padding: 40px 30px; text-align: center;">
+    //       <p style="font-size: 16px; color: #666; margin-bottom: 10px;">Halo, <strong style="color: #1e3c72;">TapTipTup</strong></p>
+    //       <p style="font-size: 15px; color: #888; line-height: 1.6;">Terima kasih telah bergabung. Gunakan kode PIN di bawah ini untuk menyelesaikan pendaftaran akun</p>
           
-          <div style="margin: 30px 0; padding: 20px; background-color: #f8fafd; border: 2px dashed #cbd5e0; border-radius: 8px;">
-            <span style="font-size: 36px; font-weight: bold; color: #1e3c72; letter-spacing: 10px; font-family: monospace;">${verificationPin}</span>
-          </div>
+    //       <div style="margin: 30px 0; padding: 20px; background-color: #f8fafd; border: 2px dashed #cbd5e0; border-radius: 8px;">
+    //         <span style="font-size: 36px; font-weight: bold; color: #1e3c72; letter-spacing: 10px; font-family: monospace;">${verificationPin}</span>
+    //       </div>
 
-          <p style="font-size: 13px; color: #a0aec0; margin-top: 20px;">*Kode bersifat rahasi. Mohon tidak membagikan kode ini kepada siapa pun!</p>
-        </div>
+    //       <p style="font-size: 13px; color: #a0aec0; margin-top: 20px;">*Kode bersifat rahasi. Mohon tidak membagikan kode ini kepada siapa pun!</p>
+    //     </div>
 
-        <div style="background-color: #fcfcfc; padding: 20px; text-align: center; border-top: 1px solid #f0f0f0;">
-          <p style="font-size: 12px; color: #999; margin: 0;">© 2026 Sistem Admin Sekolah. All rights reserved.</p>
-        </div>
-      </div>
-    </div>
-    `;
+    //     <div style="background-color: #fcfcfc; padding: 20px; text-align: center; border-top: 1px solid #f0f0f0;">
+    //       <p style="font-size: 12px; color: #999; margin: 0;">© 2026 Sistem Admin Sekolah. All rights reserved.</p>
+    //     </div>
+    //   </div>
+    // </div>
+    // `;
 
-    // Kirim Email
-    await sendEmail(email, 'Konfirmasi PIN Verifikasi Sekolah', emailTemplate);
+    // // Kirim Email
+    // await sendEmail(email, 'Konfirmasi PIN Verifikasi Sekolah', emailTemplate);
 
     return res.status(201).json({ 
-      message: 'Registrasi berhasil! PIN verifikasi telah dikirim ke email kamu.' 
+      message: 'Registrasi berhasil!' 
     });
 
   } catch (err) {
