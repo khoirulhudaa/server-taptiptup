@@ -120,17 +120,25 @@ router.post('/replay-donation/:donationId', authMiddleware, async (req, res) => 
       return res.status(500).json({ message: 'Socket.IO tidak tersedia' });
     }
 
+    const resolvedMediaType = donation.mediaType || (() => {
+      if (!donation.mediaUrl) return null;
+      if (/youtube\.com|youtu\.be/.test(donation.mediaUrl)) return 'youtube';
+      if (/\.(mp4|webm|mov|ogg)/i.test(donation.mediaUrl)) return 'video';
+      return 'image';
+    })();
+
     const payload = {
-      donorName:  donation.donorName,
-      amount:     donation.amount,
-      message:    donation.message,
-      mediaUrl:   donation.mediaUrl || null,
-      mediaType:  donation.mediaType || null,
-      voiceUrl:   donation.voiceUrl || null,
-      receivedAt: new Date().toISOString(),
-      soundUrl:   null,
-      isReplay:   true,
-      isMediaShare: !!donation.mediaUrl && ['video', 'youtube'].includes(donation.mediaType),
+      donorName:    donation.donorName,
+      amount:       donation.amount,
+      message:      donation.message,
+      mediaUrl:     donation.mediaUrl || null,
+      mediaType:    resolvedMediaType,          // ✅ pakai ini
+      voiceUrl:     donation.voiceUrl || null,
+      startTime:    donation.startTime || 0,
+      receivedAt:   new Date().toISOString(),
+      soundUrl:     null,
+      isReplay:     true,
+      isMediaShare: !!donation.mediaUrl && ['video', 'youtube'].includes(resolvedMediaType),
     };
 
     // ✅ GANTI LOGIC EMIT
