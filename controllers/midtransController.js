@@ -7,6 +7,7 @@
   const subathonCtrl = require('./subathonController');
   const { donationQueue } = require('../utils/donationQueue');
   const { sendWithdrawalNotification } = require('../utils/telegramNotification');
+const { checkYouTubeVideo } = require('../utils/checkYoutube');
   require('dotenv').config();
 
   const isProduction = process.env.NODE_ENV === 'production';
@@ -125,6 +126,21 @@
       if (blocked) {
         return res.status(400).json({ message: 'Pesan mengandung kata terlarang.' });
       }
+
+      // ─── Tambahkan ini tepat setelah blok di atas ─────────────────────────────
+      // Validasi YouTube jika ada mediaUrl yang YouTube
+      if (mediaUrl && isYouTubeUrl(mediaUrl)) {
+        const ytCheck = await checkYouTubeVideo(mediaUrl);
+        if (!ytCheck.safe) {
+          return res.status(400).json({
+            message: `Video tidak dapat ditampilkan: ${ytCheck.reason}`,
+            code: 'YOUTUBE_BLOCKED',
+          });
+        }
+        console.log(`[YT Check] ✅ "${ytCheck.title}" by ${ytCheck.channel} — aman`);
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
   
       // Validasi pollVote jika ada
       let validatedPollVote = null;
