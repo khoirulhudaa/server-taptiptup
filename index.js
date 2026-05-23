@@ -106,6 +106,7 @@ const testAlertRoutes  = require('./routers/testAlertRouter');
 const voiceRoutes      = require('./routers/voiceRouter');
 const waRoutes = require('./routers/waRouter');
 const suggestionRoutes = require('./routers/suggestionRouter');
+const youtubeCheckRoutes = require('./routers/youtubeCheck');
 
 app.get('/testing', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running!', node_env: process.env.NODE_ENV });
@@ -116,6 +117,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/wa', waRoutes);
 app.use('/api/suggestions', suggestionRoutes);
 app.use('/api/midtrans',     midtransRoutes);
+app.use('/api/youtube-check',      youtubeCheckRoutes);
 app.use('/api/overlay',      overlayRoutes);
 app.use('/api/auth',         authRoutes);
 app.use('/api/voice',        voiceRoutes);
