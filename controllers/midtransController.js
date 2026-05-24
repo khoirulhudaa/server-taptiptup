@@ -40,6 +40,34 @@ const { checkYouTubeVideo } = require('../utils/checkYoutube');
     return hash === signatureKey;
   };
 
+  const toYouTubeEmbed = (url, startTime = 0) => {
+    if (!url || !isYouTubeUrl(url)) return url;
+
+    let videoId = '';
+    if (url.includes('youtu.be')) {
+      videoId = url.split('youtu.be/')[1]?.split(/[?&]/)[0];
+    } else {
+      try {
+        const urlObj = new URL(url);
+        videoId = urlObj.searchParams.get('v') || '';
+
+        // ← tambah handle /live/ dan /shorts/
+        if (!videoId) {
+          const pathMatch = url.match(/youtube\.com\/(live|shorts)\/([\w-]+)/);
+          if (pathMatch) videoId = pathMatch[2];
+        }
+      } catch { /* fallback */ }
+    }
+
+    if (!videoId) return url;
+
+    const isLive = url.includes('/live/');
+    let embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&controls=0`;
+    if (!isLive) embedUrl += `&loop=1&playlist=${videoId}`;
+    if (startTime > 0) embedUrl += `&start=${Math.floor(startTime)}`;
+    return embedUrl;
+  };
+
   const isYouTubeUrl = (url) => {
     if (!url) return false;
     return (
@@ -524,15 +552,20 @@ const { checkYouTubeVideo } = require('../utils/checkYoutube');
             console.log(`[VoiceOverlay] Emitted ke room ${streamer.overlayToken}-voice`);
           }
 
+          const rawMediaUrl = dataDonasi.mediaUrl || null;
+          const startTime   = dataDonasi.startTime || 0;
+
           const payload = {
             donorName:    dataDonasi.donorName,
             amount:       nominalInput,
             message:      dataDonasi.message,
             voiceUrl:     dataDonasi.voiceUrl   || null,
-            mediaUrl:     dataDonasi.mediaUrl   || null,
+            mediaUrl:     isYouTubeUrl(rawMediaUrl)       // ← convert di sini
+                            ? toYouTubeEmbed(rawMediaUrl, startTime)
+                            : rawMediaUrl,
             mediaType:    dataDonasi.mediaType  || null,
-            isMediaShare: dataDonasi.isMediaShare || !!dataDonasi.mediaUrl, // ← fix: pakai dataDonasi
-            startTime:    dataDonasi.startTime  || 0,
+            isMediaShare: dataDonasi.isMediaShare || !!dataDonasi.mediaUrl,
+            startTime:    startTime,
             soundUrl:     dataDonasi.soundUrl   || soundUrl,
             videoBlocked: dataDonasi.videoBlocked || false,
             receivedAt:   new Date().toISOString(),
@@ -922,47 +955,8 @@ exports.getAvailableBalance = async (req, res) => {
         return res.status(500).json({ message: 'Socket.IO tidak tersedia' });
       }
 
-      // ─── Generate YouTube embed URL with start time ───────────────────────────
-      let finalMediaUrl = mediaUrl;
-      let finalStartTime = 0;
-      
-      if (mediaUrl && isYouTubeUrl(mediaUrl)) {
-        finalStartTime = startTime || 0;
-        
-        // let videoId = '';
-        // if (mediaUrl.includes('youtu.be')) {
-        //   videoId = mediaUrl.split('youtu.be/')[1]?.split(/[?&]/)[0];
-        // } else {
-        //   try {
-        //     const urlObj = new URL(mediaUrl);
-        //     videoId = urlObj.searchParams.get('v') || '';
-        //   } catch { /* fallback */ }
-        // }
-
-        let videoId = '';
-          if (mediaUrl.includes('youtu.be')) {
-            videoId = mediaUrl.split('youtu.be/')[1]?.split(/[?&]/)[0];
-          } else {
-            try {
-              const urlObj = new URL(mediaUrl);
-              videoId = urlObj.searchParams.get('v') || '';
-              
-              // ← tambah ini untuk /live/
-              if (!videoId) {
-                const liveMatch = mediaUrl.match(/youtube\.com\/live\/([\w-]+)/);
-                if (liveMatch) videoId = liveMatch[1];
-              }
-            } catch { /* fallback */ }
-          }
-        
-        if (videoId) {
-          let embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
-          if (finalStartTime > 0) {
-            embedUrl += `&start=${finalStartTime}`;
-          }
-          finalMediaUrl = embedUrl;
-        }
-      }
+      const finalStartTime = startTime || 0;
+      const finalMediaUrl = toYouTubeEmbed(mediaUrl, finalStartTime);
 
       const payload = {
         donorName: donorName || 'SuperAdmin 👑',
