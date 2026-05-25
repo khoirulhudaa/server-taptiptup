@@ -560,9 +560,7 @@ const { checkYouTubeVideo } = require('../utils/checkYoutube');
             amount:       nominalInput,
             message:      dataDonasi.message,
             voiceUrl:     dataDonasi.voiceUrl   || null,
-            mediaUrl:     isYouTubeUrl(rawMediaUrl)       // ← convert di sini
-                            ? toYouTubeEmbed(rawMediaUrl, startTime)
-                            : rawMediaUrl,
+            mediaUrl:     dataDonasi.mediaUrl   || null,   
             mediaType:    dataDonasi.mediaType  || null,
             isMediaShare: dataDonasi.isMediaShare || !!dataDonasi.mediaUrl,
             startTime:    startTime,

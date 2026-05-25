@@ -68,7 +68,7 @@ router.post('/test-socket', authMiddleware, async (req, res) => {
 });
 
 router.post('/test-mediashare/send', authMiddleware, async (req, res) => {
-  const { targetUsername, donorName, amount, message, mediaUrl, mediaType } = req.body;
+  const { targetUsername, donorName, amount, message, mediaUrl, mediaType, startTime } = req.body;
 
   const streamer = await User.findOne({ username: targetUsername }).lean();
   if (!streamer?.overlayToken) {
@@ -76,26 +76,26 @@ router.post('/test-mediashare/send', authMiddleware, async (req, res) => {
   }
 
   const io = req.app.get('socketio');
+
+  // ← Jangan convert, kirim raw — biarkan MediaShareOverlay yang handle
   const payload = {
-    donorName: donorName || 'TestDonor',
-    amount: amount || 25000,           // ✅ Bisa custom
-    message: message || null,          // ✅ Bisa custom  
-    mediaUrl,
-    mediaType: mediaType || 'image',
-    receivedAt: new Date().toISOString(),
-    soundUrl: null,
+    donorName:    donorName || 'TestDonor',
+    amount:       Number(amount) || 25000,
+    message:      message || null,
+    mediaUrl:     mediaUrl || null,       // ← raw URL
+    mediaType:    mediaType || 'image',
+    startTime:    Number(startTime) || 0, // ← tambah startTime
+    isMediaShare: true,                   // ← flag penting
+    receivedAt:   new Date().toISOString(),
+    soundUrl:     null,
     isTestMediaShare: true,
   };
 
   io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
-  
-  console.log(`[TestMediaShare FULL] → ${payload.donorName} | Rp${payload.amount} | ${payload.mediaUrl}`);
-  
-  res.json({ 
-    success: true,
-    message: '✅ Test MediaShare lengkap terkirim!',
-    preview: payload
-  });
+
+  console.log(`[TestMediaShare] → ${payload.donorName} | Rp${payload.amount} | ${payload.mediaUrl}`);
+
+  res.json({ success: true, message: '✅ Test MediaShare terkirim!', preview: payload });
 });
 
 router.post('/replay-donation/:donationId', authMiddleware, async (req, res) => {

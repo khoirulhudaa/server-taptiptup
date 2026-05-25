@@ -74,26 +74,22 @@ class DonationQueueManager {
 
       // 4. Emit ke room yang tepat
       if (payload.voiceUrl && !payload.mediaUrl) {
-        // Voice-only donation → skip main overlay (sudah di-emit langsung ke room -voice di webhook)
+        // Voice-only → skip (sudah di-emit langsung di webhook)
         await QueueItem.findByIdAndUpdate(item._id, { $set: { status: 'DONE' } });
-
         const remaining = await QueueItem.countDocuments({ overlayToken, status: 'PENDING' });
-        console.log(`[Queue] 🎙️ Voice-only "${payload.donorName}" skip main overlay | Sisa: ${remaining}`);
-
-        const nextDelay = 500;
-        setTimeout(() => this._processNext(overlayToken, io), nextDelay);
+        console.log(`[Queue] 🎙️ Voice-only skip | Sisa: ${remaining}`);
+        setTimeout(() => this._processNext(overlayToken, io), 500);
         return;
 
-      } else if (payload.mediaUrl) {
-        // ✅ Media Share → emit ke room -mediashare dengan event new-media-donation
-        console.log(`[Queue] 🎬 MediaShare → "${payload.donorName}" Rp${payload.amount}`);
-        console.log(`[Queue] 🎬 mediaUrl yang di-emit: ${payload.mediaUrl}`);
+      } else if (payload.mediaUrl && payload.isMediaShare) {
+        // ← isMediaShare harus true
+        console.log(`[Queue] 🎬 MediaShare → "${payload.donorName}" | URL: ${payload.mediaUrl}`);
         io.to(`${overlayToken}-mediashare`).emit('new-media-donation', payload);
 
       } else {
-        // 💜 Regular alert overlay
+        // Regular alert
         io.to(overlayToken).emit('new-donation', payload);
-        console.log(`[Queue] 💜 OverlayAlert → "${payload.donorName}" Rp${payload.amount}`);
+        console.log(`[Queue] 💜 OverlayAlert → "${payload.donorName}"`);
       }
 
       // 5. Mark as DONE
