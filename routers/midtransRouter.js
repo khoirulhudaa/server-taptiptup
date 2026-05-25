@@ -98,6 +98,78 @@ router.post('/test-mediashare/send', authMiddleware, async (req, res) => {
   res.json({ success: true, message: '✅ Test MediaShare terkirim!', preview: payload });
 });
 
+// router.post('/replay-donation/:donationId', authMiddleware, async (req, res) => {
+//   const { donationId } = req.params;
+  
+//   try {
+//     const donation = await Donation.findById(donationId)
+//       .populate('userId', 'username overlayToken')
+//       .lean();
+    
+//     if (!donation) {
+//       return res.status(404).json({ message: 'Donasi tidak ditemukan' });
+//     }
+
+//     const streamer = donation.userId;
+//     if (!streamer?.overlayToken) {
+//       return res.status(400).json({ message: 'Streamer tidak memiliki overlay token' });
+//     }
+
+//     const io = req.app.get('socketio');
+//     if (!io) {
+//       return res.status(500).json({ message: 'Socket.IO tidak tersedia' });
+//     }
+
+//     const resolvedMediaType = donation.mediaType || (() => {
+//       if (!donation.mediaUrl) return null;
+//       if (/youtube\.com|youtu\.be/.test(donation.mediaUrl)) return 'youtube';
+//       if (/\.(mp4|webm|mov|ogg)/i.test(donation.mediaUrl)) return 'video';
+//       return 'image';
+//     })();
+
+//     const payload = {
+//       donorName:    donation.donorName,
+//       amount:       donation.amount,
+//       message:      donation.message,
+//       mediaUrl:     donation.mediaUrl || null,
+//       mediaType:    resolvedMediaType,          // ✅ pakai ini
+//       voiceUrl:     donation.voiceUrl || null,
+//       startTime:    donation.startTime || 0,
+//       receivedAt:   new Date().toISOString(),
+//       soundUrl:     null,
+//       isReplay:     true,
+//       isMediaShare: !!donation.mediaUrl && ['video', 'youtube'].includes(resolvedMediaType),
+//     };
+
+//     // ✅ GANTI LOGIC EMIT
+//     if (payload.voiceUrl && !payload.mediaUrl) {
+//       io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', payload);
+//     } else if (payload.isMediaShare && payload.mediaUrl) {
+//       // ✅ Media share → room yang benar
+//       io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
+//     } else {
+//       io.to(streamer.overlayToken).emit('new-donation', payload);
+//     }
+
+//     console.log(`[Replay] DIRECT emit "${donation.donorName}" Rp${donation.amount} → @${streamer.username}`);
+
+//     res.json({
+//       success: true,
+//       message: 'Replay berhasil dikirim ke OBS!',
+//       donation: {
+//         donor:    donation.donorName,
+//         amount:   donation.amount,
+//         hasMedia: !!donation.mediaUrl,
+//       },
+//     });
+
+//   } catch (err) {
+//     console.error('[Replay Donation] Error:', err);
+//     res.status(500).json({ message: 'Gagal replay donasi', error: err.message });
+//   }
+// });
+
+
 router.post('/replay-donation/:donationId', authMiddleware, async (req, res) => {
   const { donationId } = req.params;
   
@@ -120,38 +192,52 @@ router.post('/replay-donation/:donationId', authMiddleware, async (req, res) => 
       return res.status(500).json({ message: 'Socket.IO tidak tersedia' });
     }
 
-    const resolvedMediaType = donation.mediaType || (() => {
-      if (!donation.mediaUrl) return null;
-      if (/youtube\.com|youtu\.be/.test(donation.mediaUrl)) return 'youtube';
-      if (/\.(mp4|webm|mov|ogg)/i.test(donation.mediaUrl)) return 'video';
-      return 'image';
-    })();
+    // ==================== IMPROVED MEDIA TYPE DETECTION ====================
+    let resolvedMediaType = donation.mediaType;
+
+    if (!resolvedMediaType && donation.mediaUrl) {
+      const url = donation.mediaUrl.toLowerCase();
+
+      if (/youtube\.com|youtu\.be/.test(url)) {
+        resolvedMediaType = 'youtube';
+      } 
+      else if (/\.(mp4|webm|mov|ogg)/i.test(url)) {
+        resolvedMediaType = 'video';
+      } 
+      else if (/tiktok\.com|vt\.tiktok\.com|vm\.tiktok\.com/.test(url)) {
+        resolvedMediaType = 'tiktok';        // ← TAMBAHKAN INI
+      } 
+      else {
+        resolvedMediaType = 'image';
+      }
+    }
 
     const payload = {
       donorName:    donation.donorName,
       amount:       donation.amount,
       message:      donation.message,
       mediaUrl:     donation.mediaUrl || null,
-      mediaType:    resolvedMediaType,          // ✅ pakai ini
+      mediaType:    resolvedMediaType,          // ← Sekarang support TikTok
       voiceUrl:     donation.voiceUrl || null,
       startTime:    donation.startTime || 0,
       receivedAt:   new Date().toISOString(),
       soundUrl:     null,
       isReplay:     true,
-      isMediaShare: !!donation.mediaUrl && ['video', 'youtube'].includes(resolvedMediaType),
+      isMediaShare: !!donation.mediaUrl && ['video', 'youtube', 'tiktok'].includes(resolvedMediaType),
     };
 
-    // ✅ GANTI LOGIC EMIT
+    // ✅ Emit Logic
     if (payload.voiceUrl && !payload.mediaUrl) {
       io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', payload);
-    } else if (payload.isMediaShare && payload.mediaUrl) {
-      // ✅ Media share → room yang benar
+    } 
+    else if (payload.isMediaShare && payload.mediaUrl) {
       io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
-    } else {
+    } 
+    else {
       io.to(streamer.overlayToken).emit('new-donation', payload);
     }
 
-    console.log(`[Replay] DIRECT emit "${donation.donorName}" Rp${donation.amount} → @${streamer.username}`);
+    console.log(`[Replay] ${resolvedMediaType?.toUpperCase() || 'NORMAL'} "${donation.donorName}" Rp${donation.amount} → @${streamer.username}`);
 
     res.json({
       success: true,
@@ -159,6 +245,7 @@ router.post('/replay-donation/:donationId', authMiddleware, async (req, res) => 
       donation: {
         donor:    donation.donorName,
         amount:   donation.amount,
+        mediaType: resolvedMediaType,
         hasMedia: !!donation.mediaUrl,
       },
     });
