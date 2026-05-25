@@ -9,6 +9,7 @@ const { User, OverlaySetting, Donation } = require('../models');
 const { donationQueue } = require('../utils/donationQueue');
 const { getDisplayDuration } = require('../utils/helpers');
 const { default: mongoose } = require('mongoose');
+const { spawn } = require('child_process');
 
 // ─── Donasi ───────────────────────────────────────────────────────────────────
 router.post('/create-invoice', midtransCtrl.createDonation);
@@ -346,6 +347,46 @@ router.get('/tiktok-resolve', async (req, res) => {
   } catch (err) {
     console.error('[TikTok Resolve] Error:', err.message);
     return res.status(500).json({ resolved: false, reason: 'Gagal resolve URL' });
+  }
+});
+
+
+router.get('/tiktok-stream', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'URL required' });
+
+  try {
+    // Step 1: ambil direct CDN URL dulu (cepat, ~1-2 detik)
+    const getUrl = spawn('yt-dlp', [
+      '--get-url',
+      '--no-playlist',
+      '-f', 'mp4',   // format mp4
+      url
+    ]);
+
+    let directUrl = '';
+    let errOut = '';
+
+    getUrl.stdout.on('data', (d) => { directUrl += d.toString(); });
+    getUrl.stderr.on('data', (d) => { errOut += d.toString(); });
+
+    getUrl.on('close', (code) => {
+      directUrl = directUrl.trim().split('\n')[0];
+
+      if (code !== 0 || !directUrl) {
+        console.error('[TikTok Stream] yt-dlp error:', errOut);
+        return res.status(500).json({ error: 'Gagal ambil URL video TikTok' });
+      }
+
+      // Step 2: redirect ke CDN URL — browser fetch langsung dari TikTok CDN
+      // URL CDN TikTok valid ~1 jam
+      console.log('[TikTok Stream] Redirect ke CDN:', directUrl.substring(0, 80) + '...');
+      res.redirect(302, directUrl);
+    });
+
+  } catch (err) {
+    console.error('[TikTok Stream] Error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
