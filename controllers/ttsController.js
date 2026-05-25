@@ -109,39 +109,29 @@ function synthesizeEdgeTTS({ text, voice, rate, pitch, volume }) {
 
 exports.synthesize = async (req, res) => {
   try {
-    const {
-      text      = '',
-      voiceName = 'id-ID-GadisNeural',
-      rate      = '+0%',
-      pitch     = '+0Hz',
-      volume    = '+0%',
-    } = req.body;
-
+    const { text = '', voiceName = 'id-ID-GadisNeural', rate = '+0%' } = req.body;
     const cleanText = text.trim().substring(0, 500);
     if (!cleanText) return res.status(400).json({ message: 'Text kosong' });
 
-    const validVoice = VOICES.find(v => v.name === voiceName)
-      ? voiceName
-      : 'id-ID-GadisNeural';
+    // Map voice ke ResponsiveVoice
+    const voiceMap = {
+      'id-ID-GadisNeural': 'Indonesian Female',
+      'id-ID-ArdiNeural':  'Indonesian Male',
+      'en-US-JennyNeural': 'US English Female',
+      'en-US-GuyNeural':   'US English Male',
+    };
+    const rvVoice = voiceMap[voiceName] || 'Indonesian Female';
 
-    const audioBuffer = await synthesizeEdgeTTS({
-      text:   cleanText,
-      voice:  validVoice,
-      rate,
-      pitch,
-      volume,
-    });
+    const url = `https://code.responsivevoice.org/getvoice.php?t=${encodeURIComponent(cleanText)}&tl=id&sv=&vn=&pitch=0.5&rate=0.5&vol=1&lang=${rvVoice}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`ResponsiveVoice HTTP ${response.status}`);
 
     res.set('Content-Type', 'audio/mpeg');
     res.set('Cache-Control', 'no-cache');
     res.set('Access-Control-Allow-Origin', '*');
-    res.set('Content-Length', audioBuffer.length);
-    res.send(audioBuffer);
-
+    response.body.pipe(res);
   } catch (err) {
-    console.error('[TTS synthesize error]', err);
-    if (!res.headersSent) {
-      res.status(500).json({ message: 'TTS gagal', error: err.message });
-    }
+    console.error('[TTS]', err);
+    if (!res.headersSent) res.status(500).json({ message: 'TTS gagal', error: err.message });
   }
 };
