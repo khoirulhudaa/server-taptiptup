@@ -10,6 +10,34 @@ const { donationQueue } = require('../utils/donationQueue');
 const { getDisplayDuration } = require('../utils/helpers');
 const { default: mongoose } = require('mongoose');
 const { spawn } = require('child_process');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Folder temp upload
+const TEMP_DIR = path.join(__dirname, '../temp-uploads');
+if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, TEMP_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `temp-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // max 5MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!allowed.includes(ext)) {
+      return cb(new Error('Hanya gambar yang diizinkan (jpg, png, gif, webp)'));
+    }
+    cb(null, true);
+  },
+});
 
 // ─── Donasi ───────────────────────────────────────────────────────────────────
 router.post('/create-invoice', midtransCtrl.createDonation);
@@ -316,6 +344,24 @@ router.get('/tiktok-stream', async (req, res) => {
     console.error('[TikTok Stream] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// Upload endpoint
+router.post('/temp-upload', upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'File tidak ditemukan' });
+
+  const fileUrl = `${process.env.BASE_URL || 'https://server-dukungin-production.up.railway.app'}/temp-uploads/${req.file.filename}`;
+
+  // Auto-delete setelah 15 menit
+  setTimeout(() => {
+    fs.unlink(req.file.path, (err) => {
+      if (err) console.warn('[TempUpload] Gagal hapus:', req.file.filename);
+      else console.log('[TempUpload] Terhapus:', req.file.filename);
+    });
+  }, 15 * 60 * 1000);
+
+  console.log(`[TempUpload] ✅ ${req.file.filename} — akan dihapus dalam 15 menit`);
+  res.json({ url: fileUrl, expiresIn: '15 minutes' });
 });
 
 module.exports = router;

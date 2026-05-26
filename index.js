@@ -9,6 +9,7 @@ const { donationQueue, QueueItem } = require('./utils/donationQueue');
 const { initTelegram, sendNotification } = require('./config/telegram');
 const telegramQueue = { sendWithdrawalNotification, sendDonationNotification } = require('./utils/telegramNotification');
 const updateAvailableBalance = require('./cron/updateAvailableBalance');
+const path = require('path');
 
 // Jalankan setiap 1 menit
 setInterval(updateAvailableBalance, 60 * 1000); 
@@ -48,6 +49,7 @@ app.use('/uploads', express.static(path.join(publicPath, 'uploads'), {
     res.set('Cache-Control', 'public, max-age=86400');
   }
 }));
+app.use('/temp-uploads', express.static(path.join(__dirname, 'temp-uploads')));
 
 // Optional: Serve entire public folder
 app.use(express.static(publicPath));
