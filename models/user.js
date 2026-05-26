@@ -59,8 +59,10 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
     securityPin: { 
-      type: String,     // Hashed 4 digit PIN
-      required: true 
+      type: String, 
+      required: false,        // ← penting: false dulu
+      minlength: 4,
+      maxlength: 4
     },
     verifyPin: {
       type: String,     // Hashed PIN

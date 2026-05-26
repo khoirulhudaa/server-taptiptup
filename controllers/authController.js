@@ -86,7 +86,14 @@ exports.register = async (req, res) => {
     });
 
     // Buat default overlay setting...
-    await OverlaySetting.create({ userId: newUser._id, ... });
+      await OverlaySetting.create({
+        userId: newUser._id,
+        minDonate: 10000,
+        overlayTheme: 'modern',
+        backgroundColor: '#6366f1',
+        textColor: '#ffffff',
+        duration: 5000,
+      });
 
     res.status(201).json({ message: 'Registrasi berhasil!' });
   } catch (err) {
