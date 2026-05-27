@@ -109,6 +109,7 @@ const waRoutes = require('./routers/waRouter');
 const suggestionRoutes = require('./routers/suggestionRouter');
 const youtubeCheckRoutes = require('./routers/youtubeCheck');
 const announcementRoutes = require('./routers/announcementRouter');
+const transferRoutes = require('./routers/transferRouter');
 
 app.get('/testing', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running!', node_env: process.env.NODE_ENV });
@@ -124,6 +125,7 @@ app.use('/api/overlay',      overlayRoutes);
 app.use('/api/auth',         authRoutes);
 app.use('/api/superadmin',   superAdminRoutes);
 app.use('/api/voice',        voiceRoutes);
+app.use('/api/transfer',        transferRoutes);
 app.use('/api/follows',      followRoutes);
 app.use('/api/milestones',   milestoneRoutes);
 app.use('/api/banned-words', bannedWordRoutes);

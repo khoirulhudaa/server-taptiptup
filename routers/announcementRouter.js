@@ -142,9 +142,6 @@ router.delete('/admin/:id', authMiddleware, superAdminMiddleware, async (req, re
 
 // ─── USER ROUTES ─────────────────────────────────────────────────────────────
 
-// GET  /api/announcements               — ambil pengumuman aktif (untuk inbox user)
-// POST /api/announcements/:id/read      — tandai sudah dibaca
-
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const now = new Date();
