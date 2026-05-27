@@ -7,6 +7,7 @@ const fs = require('fs');
 const authMiddleware = require('../middleware/authMiddleware');
 const superAdminMiddleware = require('../middleware/superAdminMiddleware');
 const Announcement = require('../models/announcement');
+const uploadAnnouncement = require('../middleware/cloudinaryUpload');
 
 // ─── Multer setup for image upload ──────────────────────────────────────────
 
