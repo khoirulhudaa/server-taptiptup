@@ -599,9 +599,18 @@ exports.getAvailableBalance = async (req, res) => {
   // };
 
   exports.requestWithdrawal = async (req, res) => {
-    const { amount, paymentMethod, channelCode, accountNumber, accountName } = req.body;
+    const { amount, paymentMethod, channelCode, accountNumber, accountName, securityPin } = req.body;
     const userId = req.user.id;
 
+    if (!securityPin || securityPin.length !== 4) {
+      return res.status(400).json({ message: "PIN keamanan wajib diisi (4 digit)" });
+    }
+
+    const userPin = await User.findById(userId);
+    if (!userPin.validSecurityPin(securityPin)) {
+      return res.status(401).json({ message: "PIN yang kamu masukkan salah" });
+    }
+    
     const WITHDRAW_FEE = 1500;
 
     const grossAmount = parseFloat(amount);
