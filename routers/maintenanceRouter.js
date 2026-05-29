@@ -6,16 +6,16 @@ const auth = require('../middleware/authMiddleware');
 // GET settings - Boleh diakses oleh semua user yang login
 router.get('/settings', auth, async (req, res) => {
   try {
-    let settings = await Maintenance.findOne();
-    
-    if (!settings) {
-      settings = await Maintenance.create({});
-    }
+    const settings = await Maintenance.findOneAndUpdate(
+      {},
+      { $setOnInsert: { auth: false, supporter: false, withdrawal: false, dashboard: false } },
+      { upsert: true, new: true }
+    );
 
     res.json(settings);
   } catch (err) {
-    console.error('[Maintenance GET Error]', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('[Maintenance GET Error]', err.message);
+    res.status(500).json({ message: err.message });
   }
 });
 
