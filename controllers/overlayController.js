@@ -51,7 +51,7 @@ exports.updateSettings = async (req, res) => {
     const allowedFields = [
       'minDonate', 'maxDonate', 'overlayEnabled', 'customIcon', 'showTimestamp',
       'theme', 'primaryColor', 'textColor', 'borderColor', 'animation', 'maxWidth', 
-      'overlayPosition', 
+      'overlayPosition', 'minDonate', 'maxDonate',
 
       // Field Durasi Lama
       'baseDuration', 'extraPerAmount', 'extraDuration', 'durationTiers',
@@ -63,6 +63,9 @@ exports.updateSettings = async (req, res) => {
       'mediaShareBaseDuration',
       'mediaShareExtraPerAmount',
       'mediaShareExtraDuration',
+      'voiceBaseDuration',
+      'voiceExtraPerAmount',
+      'voiceExtraDuration',
 
       // Field lainnya
       'mediaTriggers', 'soundUrl', 'customCss', 'highlightColor',
