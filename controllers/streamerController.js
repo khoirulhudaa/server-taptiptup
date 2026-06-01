@@ -27,7 +27,6 @@ exports.getPublicStreamers = async (req, res) => {
       let thumbnail = null;
 
       try {
-        // Cek apakah sedang live
         const searchRes = await axios.get('https://www.googleapis.com/youtube/v3/search', {
           params: {
             part: 'snippet',
@@ -38,7 +37,7 @@ exports.getPublicStreamers = async (req, res) => {
           }
         });
 
-        if (searchRes.data.items.length > 0) {
+        if (searchRes.data.items?.length > 0) {
           isLive = true;
           liveVideoId = searchRes.data.items[0].id.videoId;
           thumbnail = searchRes.data.items[0].snippet.thumbnails.high.url;
@@ -47,20 +46,27 @@ exports.getPublicStreamers = async (req, res) => {
         console.error(`YouTube API error for ${user.username}:`, err.message);
       }
 
-      result.push({
-        id: user._id,
-        username: user.username,
-        youtubeUrl: user.youtube,
-        profilePicture: user.profilePicture || '/default-avatar.png',
-        bio: user.bio || '',
-        donateIntro: user.donateIntro,
-        isLive,
-        liveVideoId,
-        thumbnail: thumbnail || null,
-      });
+      // ✅ Hanya push jika sedang LIVE
+      if (isLive) {
+        result.push({
+          id: user._id,
+          username: user.username,
+          youtubeUrl: user.youtube,
+          profilePicture: user.profilePicture || '/default-avatar.png',
+          bio: user.bio || '',
+          donateIntro: user.donateIntro,
+          isLive,
+          liveVideoId,
+          thumbnail: thumbnail || null,
+        });
+      }
     }
 
-    res.json({ success: true, streamers: result });
+    res.json({ 
+      success: true, 
+      streamers: result,
+      totalLive: result.length 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Gagal mengambil data streamer' });
