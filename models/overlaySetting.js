@@ -39,7 +39,6 @@ const overlaySettingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
     },
 
     // ── FEE CONFIGURATION (BARU) ─────────────────────────────────────────────
@@ -133,6 +132,7 @@ const overlaySettingSchema = new mongoose.Schema(
       link: String,
       description: String
     }],
+    slot: { type: String, enum: ['A', 'B'], default: 'A' },
   },
   { timestamps: true }
 );
@@ -163,39 +163,6 @@ overlaySettingSchema.methods.getVoiceDuration = function (amount) {
   const extras   = perAmt > 0 ? Math.floor(amount / perAmt) : 0;
   return (base + extras * extraDur) * 1000; // ms
 };
-
-// overlaySettingSchema.methods.getAlertDuration = function (amount) {
-//   if (!amount || amount <= 0) return 10000;
-
-//   // ✅ PRIORITAS 1: Gunakan pengaturan baru (Dashboard)
-//   if (this.alertBaseDuration != null) {
-//     const base = Number(this.alertBaseDuration) || 10;
-//     const perAmount = Number(this.alertExtraPerAmount) || 10000;
-//     const extraDur = Number(this.alertExtraDuration) || 5;
-
-//     const extras = perAmount > 0 ? Math.floor(amount / perAmount) : 0;
-//     const totalSeconds = base + (extras * extraDur);
-    
-//     return totalSeconds * 1000;
-//   }
-
-//   // Fallback lama (jika ada)
-//   if (this.alertDurationPerThousand) {
-//     const seconds = Math.ceil(amount / 1000) * this.alertDurationPerThousand;
-//     return seconds * 1000;
-//   }
-
-//   if (this.durationTiers?.length > 0) {
-//     const sorted = [...this.durationTiers].sort((a, b) => b.minAmount - a.minAmount);
-//     for (const tier of sorted) {
-//       if (amount >= tier.minAmount && (tier.maxAmount === null || amount <= tier.maxAmount)) {
-//         return tier.duration * 1000;
-//       }
-//     }
-//   }
-
-//   return 10000; // default 10 detik
-// };
 
 overlaySettingSchema.methods.getAlertDuration = function (amount) {
   if (!amount || amount <= 0) return 10000;
@@ -257,5 +224,7 @@ overlaySettingSchema.methods.getSoundForAmount = function (amount) {
   }
   return this.soundUrl || null;
 };
+
+overlaySettingSchema.index({ userId: 1, slot: 1 }, { unique: true });
 
 module.exports = mongoose.model('OverlaySetting', overlaySettingSchema);

@@ -8,6 +8,9 @@ require('dotenv').config();
 exports.getSettings = async (req, res) => {
   try {
     const userId = req.user.id;
+
+    const slot = (req.query.slot || 'A').toUpperCase();
+    const overlaySetting = await OverlaySetting.findOne({ userId, slot }).lean();
  
     const user = await User.findById(userId)
       .select('-password')
@@ -75,6 +78,8 @@ exports.updateSettings = async (req, res) => {
       'feeBearer'
     ];
 
+    const slot = (req.query.slot || 'A').toUpperCase();
+
     const updateData = {};
     allowedFields.forEach(key => {
       if (req.body[key] !== undefined) {
@@ -82,10 +87,16 @@ exports.updateSettings = async (req, res) => {
       }
     });
 
+    // const setting = await OverlaySetting.findOneAndUpdate(
+    //   { userId: req.user.id },
+    //   { $set: updateData },
+    //   { new: true, upsert: true, runValidators: true }
+    // );
+
     const setting = await OverlaySetting.findOneAndUpdate(
-      { userId: req.user.id },
+      { userId: req.user.id, slot },
       { $set: updateData },
-      { new: true, upsert: true, runValidators: true }
+      { new: true, upsert: true }
     );
 
     res.json({ 
