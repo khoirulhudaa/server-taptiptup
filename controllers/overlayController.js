@@ -18,7 +18,7 @@ exports.getSettings = async (req, res) => {
  
     if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
  
-    const overlaySetting = await OverlaySetting.findOne({ userId }).lean();
+    // const overlaySetting = await OverlaySetting.findOne({ userId }).lean();
  
     // ── Hitung saldo ──────────────────────────────────────────
     const walletBalance    = parseFloat(user.walletBalance    || 0);
