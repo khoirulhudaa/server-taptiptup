@@ -172,7 +172,7 @@ exports.getOverlaySettings = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'Token tidak valid' });
 
-    const slot = (req.query.slot || 'A').toUpperCase();   // ← TAMBAHKAN INI
+    const slot = (req.query.slot || 'A').toUpperCase();  
 
     const overlaySetting = await OverlaySetting.findOne({ 
       userId: user._id, 
