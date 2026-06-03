@@ -200,7 +200,7 @@ overlaySettingSchema.methods.getVoiceDuration = function (amount) {
 overlaySettingSchema.methods.getAlertDuration = function (amount) {
   if (!amount || amount <= 0) return 10000;
 
-  // PRIORITAS 1: durationTiers
+  // PRIORITAS PERTAMA: durationTiers
   if (this.durationTiers?.length > 0) {
     const sorted = [...this.durationTiers].sort((a, b) => b.minAmount - a.minAmount);
     for (const tier of sorted) {
@@ -210,7 +210,7 @@ overlaySettingSchema.methods.getAlertDuration = function (amount) {
     }
   }
 
-  // PRIORITAS 2: alertBaseDuration + extra
+  // PRIORITAS KEDUA: alertBaseDuration + extra
   if (this.alertBaseDuration != null) {
     const base     = Number(this.alertBaseDuration)   || 10;
     const perAmt   = Number(this.alertExtraPerAmount)  || 10000;
