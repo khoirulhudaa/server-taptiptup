@@ -94,9 +94,14 @@ exports.updateSettings = async (req, res) => {
     // );
 
     const setting = await OverlaySetting.findOneAndUpdate(
-      { userId: req.user.id, slot },
+      { userId: req.user.id, slot },           // query
       { $set: updateData },
-      { new: true, upsert: true }
+      { 
+        new: true, 
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true   // ← tambahkan ini
+      }
     );
 
     res.json({ 
