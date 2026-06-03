@@ -122,12 +122,17 @@ exports.getPublicProfile = async (req, res) => {
   try {
     const user = await User.findOne(
       { username: req.params.username },
-      'username _id bio donateIntro profilePicture instagram facebook youtube twitter followersCount followingCount' // ← TAMBAHKAN INI
+      'username _id bio donateIntro profilePicture instagram facebook youtube twitter followersCount followingCount'
     ).lean();
 
     if (!user) return res.status(404).json({ message: 'Streamer tidak ditemukan' });
 
-    const overlaySetting = await OverlaySetting.findOne({ userId: user._id }).lean();
+    const slot = (req.query.slot || 'A').toUpperCase();   // ← TAMBAHKAN INI
+
+    const overlaySetting = await OverlaySetting.findOne({ 
+      userId: user._id, 
+      slot 
+    }).lean();
 
     res.json({
       ...user,
@@ -167,8 +172,14 @@ exports.getOverlaySettings = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'Token tidak valid' });
 
-    const overlaySetting = await OverlaySetting.findOne({ userId: user._id }).lean();
-    res.json(overlaySetting);
+    const slot = (req.query.slot || 'A').toUpperCase();   // ← TAMBAHKAN INI
+
+    const overlaySetting = await OverlaySetting.findOne({ 
+      userId: user._id, 
+      slot 
+    }).lean();
+    
+    res.json(overlaySetting || {});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
