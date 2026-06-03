@@ -93,6 +93,10 @@ const userSchema = new mongoose.Schema(
       default: '',           // URL gambar
       trim: true,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
