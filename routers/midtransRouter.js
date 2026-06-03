@@ -351,7 +351,7 @@ router.get('/tiktok-stream', async (req, res) => {
 router.post('/temp-upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'File tidak ditemukan' });
 
-  const fileUrl = `${process.env.BASE_URL || 'https://server-dukungin-production.up.railway.app'}/temp-uploads/${req.file.filename}`;
+  const fileUrl = `${process.env.BASE_URL || 'https://server-ttt-production.up.railway.app'}/temp-uploads/${req.file.filename}`;
 
   // Auto-delete setelah 15 menit
   setTimeout(() => {

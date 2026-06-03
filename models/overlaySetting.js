@@ -115,9 +115,6 @@ const overlaySettingSchema = new mongoose.Schema(
     mediaShareExtraPerAmount:   { type: Number, default: 10000 }, // setiap Rp10.000
     mediaShareExtraDuration:    { type: Number, default: 10 },   // tambah 10 detik
 
-    // (opsional) tetap boleh pakai tier kalau mau advanced
-    durationTiers: { type: [durationTierSchema], default: [] },
-
     // ── Text-to-Speech ──────────────────────────────────────────────────────
     ttsEnabled: { type: Boolean, default: false },
     ttsRate: { type: Number, default: 1.0 },
@@ -167,27 +164,43 @@ overlaySettingSchema.methods.getVoiceDuration = function (amount) {
   return (base + extras * extraDur) * 1000; // ms
 };
 
+// overlaySettingSchema.methods.getAlertDuration = function (amount) {
+//   if (!amount || amount <= 0) return 10000;
+
+//   // ✅ PRIORITAS 1: Gunakan pengaturan baru (Dashboard)
+//   if (this.alertBaseDuration != null) {
+//     const base = Number(this.alertBaseDuration) || 10;
+//     const perAmount = Number(this.alertExtraPerAmount) || 10000;
+//     const extraDur = Number(this.alertExtraDuration) || 5;
+
+//     const extras = perAmount > 0 ? Math.floor(amount / perAmount) : 0;
+//     const totalSeconds = base + (extras * extraDur);
+    
+//     return totalSeconds * 1000;
+//   }
+
+//   // Fallback lama (jika ada)
+//   if (this.alertDurationPerThousand) {
+//     const seconds = Math.ceil(amount / 1000) * this.alertDurationPerThousand;
+//     return seconds * 1000;
+//   }
+
+//   if (this.durationTiers?.length > 0) {
+//     const sorted = [...this.durationTiers].sort((a, b) => b.minAmount - a.minAmount);
+//     for (const tier of sorted) {
+//       if (amount >= tier.minAmount && (tier.maxAmount === null || amount <= tier.maxAmount)) {
+//         return tier.duration * 1000;
+//       }
+//     }
+//   }
+
+//   return 10000; // default 10 detik
+// };
+
 overlaySettingSchema.methods.getAlertDuration = function (amount) {
   if (!amount || amount <= 0) return 10000;
 
-  // ✅ PRIORITAS 1: Gunakan pengaturan baru (Dashboard)
-  if (this.alertBaseDuration != null) {
-    const base = Number(this.alertBaseDuration) || 10;
-    const perAmount = Number(this.alertExtraPerAmount) || 10000;
-    const extraDur = Number(this.alertExtraDuration) || 5;
-
-    const extras = perAmount > 0 ? Math.floor(amount / perAmount) : 0;
-    const totalSeconds = base + (extras * extraDur);
-    
-    return totalSeconds * 1000;
-  }
-
-  // Fallback lama (jika ada)
-  if (this.alertDurationPerThousand) {
-    const seconds = Math.ceil(amount / 1000) * this.alertDurationPerThousand;
-    return seconds * 1000;
-  }
-
+  // PRIORITAS 1: durationTiers
   if (this.durationTiers?.length > 0) {
     const sorted = [...this.durationTiers].sort((a, b) => b.minAmount - a.minAmount);
     for (const tier of sorted) {
@@ -197,7 +210,16 @@ overlaySettingSchema.methods.getAlertDuration = function (amount) {
     }
   }
 
-  return 10000; // default 10 detik
+  // PRIORITAS 2: alertBaseDuration + extra
+  if (this.alertBaseDuration != null) {
+    const base     = Number(this.alertBaseDuration)   || 10;
+    const perAmt   = Number(this.alertExtraPerAmount)  || 10000;
+    const extraDur = Number(this.alertExtraDuration)   || 5;
+    const extras   = perAmt > 0 ? Math.floor(amount / perAmt) : 0;
+    return (base + extras * extraDur) * 1000;
+  }
+
+  return 10000;
 };
 
 overlaySettingSchema.methods.getMediaShareDuration = function (amount) {
