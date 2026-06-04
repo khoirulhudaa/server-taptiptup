@@ -58,6 +58,33 @@ router.get('/', authMiddleware, superAdminOnly, async (req, res) => {
   }
 });
 
+router.put('/:id/change-role', authMiddleware, superAdminOnly, async (req, res) => {
+  try {
+    const { role } = req.body;
+
+    if (!['user', 'superAdmin'].includes(role)) {
+      return res.status(400).json({ message: 'Role tidak valid. Gunakan: user atau superAdmin' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
+    if (user.role === 'superAdmin' && role === 'superAdmin') {
+      return res.status(400).json({ message: 'User sudah menjadi superAdmin' });
+    }
+
+    user.role = role;
+    await user.save();
+
+    res.json({
+      message: `Role @${user.username} diubah menjadi ${role}`,
+      role: user.role,
+    });
+  } catch (err) {
+    console.error('change-role:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // ─── TOGGLE aktif/nonaktif ────────────────────────────────────────────────────
 // PUT /api/streamer-manage/:id/toggle-active
 router.put('/:id/toggle-active', authMiddleware, superAdminOnly, async (req, res) => {
