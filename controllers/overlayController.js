@@ -178,15 +178,14 @@ exports.getOverlaySettings = async (req, res) => {
       slot 
     }).lean();
 
-    // Pastikan activeSlot selalu ada di response
-    const responseData = setting || { activeSlot: 'A' };
-
-    // Jika slot A, pastikan activeSlot terisi
-    if (slot === 'A' && !responseData.activeSlot) {
-      responseData.activeSlot = 'A';
+    const data = setting || {};
+    
+    // Selalu sertakan activeSlot ketika mengambil slot A
+    if (slot === 'A') {
+      data.activeSlot = data.activeSlot || 'A';
     }
 
-    res.json(responseData);
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
