@@ -41,6 +41,12 @@ const overlaySettingSchema = new mongoose.Schema(
       required: true,
     },
 
+    activeSlot: {
+      type: String,
+      enum: ['A', 'B'],
+      default: 'A'
+    },
+
     // ── FEE CONFIGURATION (BARU) ─────────────────────────────────────────────
     feeBearer: {
       type: String,
