@@ -183,7 +183,6 @@ exports.getOverlaySettings = async (req, res) => {
 
     const data = setting || {};
     
-    // Selalu sertakan activeSlot ketika mengambil slot A
     if (slot === 'A') {
       data.activeSlot = data.activeSlot || 'A';
     }
