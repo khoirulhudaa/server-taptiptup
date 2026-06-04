@@ -48,7 +48,6 @@ exports.getSettings = async (req, res) => {
     res.status(500).json({ message: 'Server Error' });
   }
 };
-
 exports.updateSettings = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -80,7 +79,7 @@ exports.updateSettings = async (req, res) => {
       }
     });
 
-    // Update settings di slot yang sedang diedit (A atau B)
+    // Update settings di slot yang sedang diedit
     const setting = await OverlaySetting.findOneAndUpdate(
       { userId, slot },
       { $set: updateData },
@@ -94,7 +93,6 @@ exports.updateSettings = async (req, res) => {
 
     // ==================== KRITIS: Handle activeSlot ====================
     if (updateData.activeSlot) {
-      // Selalu simpan ke Slot A
       await OverlaySetting.findOneAndUpdate(
         { userId, slot: 'A' },
         { 
@@ -105,6 +103,22 @@ exports.updateSettings = async (req, res) => {
         },
         { upsert: true, setDefaultsOnInsert: true }
       );
+    }
+
+    // ==================== EMIT SOCKET (PENTING!) ====================
+    const io = req.app.get('io');           // Ambil instance socket.io
+    if (io) {
+      // Cari overlayToken user untuk emit ke room yang benar
+      const user = await User.findById(userId).select('overlayToken').lean();
+      
+      if (user?.overlayToken) {
+        io.to(user.overlayToken).emit('settings-updated');
+        console.log(`[Socket] 'settings-updated' dikirim ke room: ${user.overlayToken} | activeSlot → ${updateData.activeSlot || 'A'}`);
+      } else {
+        console.warn('[Socket] overlayToken tidak ditemukan untuk user ini');
+      }
+    } else {
+      console.warn('[Socket] io instance tidak tersedia');
     }
 
     res.json({ 
