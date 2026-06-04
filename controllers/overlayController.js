@@ -38,6 +38,8 @@ exports.getSettings = async (req, res) => {
         walletBalance,
         availableBalance,
         pendingBalance,
+        role: user.role,
+        roleUpgradeNotified: user.roleUpgradeNotified,
       },
  
       settings: overlaySetting || {},
