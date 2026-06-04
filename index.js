@@ -6,12 +6,22 @@ const path = require('path');
 const connectDB = require('./config/database');
 const { donationQueue, QueueItem } = require('./utils/donationQueue');
 const { initTelegram, sendNotification } = require('./config/telegram');
-const { sendWithdrawalNotification, sendDonationNotification } = require('./utils/telegramNotification');
+const telegramQueue = { sendWithdrawalNotification, sendDonationNotification } = require('./utils/telegramNotification');
 const updateAvailableBalance = require('./cron/updateAvailableBalance');
 
+// Jalankan setiap 1 menit
+setInterval(updateAvailableBalance, 60 * 1000); 
+
+// Jalankan juga saat server start - tapi dengan try-catch
+(async () => {
+  try {
+    await updateAvailableBalance();
+  } catch (err) {
+    console.log('[Cron] Skipped on startup - database not ready yet');
+  }
+})();
+
 const app = express();
-app.use(cors());
-app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' },
@@ -30,22 +40,16 @@ app.use('/uploads', express.static(path.join(publicPath, 'uploads'), {
     
     // Penting untuk menghindari ORB
     const ext = path.extname(filePath).toLowerCase();
-    const mimeTypes = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp'
-    };
-    if (mimeTypes[ext]) {
-      res.set('Content-Type', mimeTypes[ext]);
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+      res.set('Content-Type', `image/${ext === '.jpg' ? 'jpeg' : ext.slice(1)}`);
     }
     
     res.set('Cache-Control', 'public, max-age=86400');
   }
 }));
-
 app.use('/temp-uploads', express.static(path.join(__dirname, 'temp-uploads')));
+
+// Optional: Serve entire public folder
 app.use(express.static(publicPath));
 
 console.log('✅ Static files dengan CORS + ORB fix sudah aktif');
@@ -83,6 +87,8 @@ io.on('connection', (socket) => {
 });
 
 // ==================== MIDDLEWARE ====================
+app.use(cors());
+app.use(express.json());
 app.set('socketio', io);
 
 // ==================== ROUTES ====================
@@ -137,7 +143,7 @@ app.use('/api/polls',        pollRoutes);
 app.use('/api/test-alert',   testAlertRoutes);
 
 const PORT = process.env.PORT || 5101;
-// ==================== START SERVER ====================
+
 connectDB().then(async () => {
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
@@ -146,28 +152,12 @@ connectDB().then(async () => {
   initTelegram();
   console.log('[Server] 🔄 WhatsApp bot dimulai...');
 
-  // FIX 3: Jalankan updateAvailableBalance pertama kali HANYA SETELAH DB connect sukses
-  try {
-    await updateAvailableBalance();
-    console.log('[Cron] Initial balance update successful');
-  } catch (err) {
-    console.error('[Cron] Failed initial balance update:', err.message);
-  }
-
-  // Set interval dipindah ke sini
-  setInterval(updateAvailableBalance, 60 * 1000); 
-  console.log('[Cron] Loop interval 1 menit diaktifkan');
-
   setTimeout(async () => {
     console.log('[Server] 🔄 Memulai recovery queue...');
     await donationQueue.recover(io);
   }, 2000);
-}).catch(err => {
-  console.error("❌ Database connection failed. Exiting...", err);
-  process.exit(1);
 });
 
-// ==================== GRACEFUL SHUTDOWN ====================
 process.on('SIGTERM', async () => {
   console.log('[Server] SIGTERM received — graceful shutdown...');
   await QueueItem.updateMany(
