@@ -94,7 +94,6 @@ exports.updateSettings = async (req, res) => {
 
     // ==================== KRITIS: Handle activeSlot ====================
     if (updateData.activeSlot) {
-      // Selalu simpan activeSlot ke Slot A sebagai MASTER
       await OverlaySetting.findOneAndUpdate(
         { userId, slot: 'A' },
         { $set: { activeSlot: updateData.activeSlot } },
