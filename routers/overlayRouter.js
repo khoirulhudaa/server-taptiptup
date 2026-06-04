@@ -31,7 +31,7 @@ const rateLimitTTS = createRateLimit({
 // Rate limit untuk settings (LOGIN - IP + Email)
 const rateLimitSettings = createRateLimit({
   windowMs: 60 * 1000,    // 1 menit
-  maxRequests: 10,       // max 10 update per menit
+  maxRequests: 20,       // max 10 update per menit
   message: 'Terlalu banyak perubahan settings. Coba lagi dalam 1 menit.',
   useEmail: true
 });
@@ -39,7 +39,7 @@ const rateLimitSettings = createRateLimit({
 // Rate limit untuk proxy (PUBLIK - IP saja)
 const rateLimitProxy = createRateLimit({
   windowMs: 60 * 1000,    // 1 menit
-  maxRequests: 10,       // max 10 proxy per menit
+  maxRequests: 20,       // max 10 proxy per menit
   message: 'Terlalu banyak proxy request. Coba lagi dalam 1 menit.',
   useEmail: false
 });
