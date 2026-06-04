@@ -62,13 +62,13 @@ router.put('/:id/change-role', authMiddleware, superAdminOnly, async (req, res) 
   try {
     const { role } = req.body;
 
-    if (!['user', 'superAdmin'].includes(role)) {
-      return res.status(400).json({ message: 'Role tidak valid. Gunakan: user atau superAdmin' });
+    if (!['user', 'superAdmin', 'streamerSuper'].includes(role)) {
+      return res.status(400).json({ message: 'Role tidak valid. Gunakan: user atau streamerSuper' });
     }
 
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
-    if (user.role === 'superAdmin' && role === 'superAdmin') {
+    if (user.role === 'streamerSuper' && role === 'streamerSuper') {
       return res.status(400).json({ message: 'User sudah menjadi superAdmin' });
     }
 
