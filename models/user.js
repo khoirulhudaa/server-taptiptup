@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'superAdmin'],
+      enum: ['user', 'superAdmin', 'streamerSuper'],
       default: 'user',
     },
     availableBalance: { type: Number, default: 0 }, 
