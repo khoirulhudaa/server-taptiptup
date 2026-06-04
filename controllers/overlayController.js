@@ -51,24 +51,19 @@ exports.getSettings = async (req, res) => {
 
 exports.updateSettings = async (req, res) => {
   try {
+    const userId = req.user.id;
+    const slot = (req.query.slot || 'A').toUpperCase();
+
     const allowedFields = [
       'minDonate', 'maxDonate', 'overlayEnabled', 'customIcon', 'showTimestamp',
       'theme', 'primaryColor', 'textColor', 'borderColor', 'animation', 'maxWidth', 
-      'overlayPosition', 'minDonate', 'maxDonate', 'activeSlot',
+      'overlayPosition', 'activeSlot',
 
-      // Field Durasi Lama
+      // Field Durasi
       'baseDuration', 'extraPerAmount', 'extraDuration', 'durationTiers',
-
-      // ✅ FIELD DURASI BARU — WAJIB DITAMBAHKAN
-      'alertBaseDuration',
-      'alertExtraPerAmount',
-      'alertExtraDuration',
-      'mediaShareBaseDuration',
-      'mediaShareExtraPerAmount',
-      'mediaShareExtraDuration',
-      'voiceBaseDuration',
-      'voiceExtraPerAmount',
-      'voiceExtraDuration',
+      'alertBaseDuration', 'alertExtraPerAmount', 'alertExtraDuration',
+      'mediaShareBaseDuration', 'mediaShareExtraPerAmount', 'mediaShareExtraDuration',
+      'voiceBaseDuration', 'voiceExtraPerAmount', 'voiceExtraDuration',
 
       // Field lainnya
       'mediaTriggers', 'soundUrl', 'customCss', 'highlightColor',
@@ -78,8 +73,6 @@ exports.updateSettings = async (req, res) => {
       'feeBearer'
     ];
 
-    const slot = (req.query.slot || 'A').toUpperCase();
-
     const updateData = {};
     allowedFields.forEach(key => {
       if (req.body[key] !== undefined) {
@@ -87,26 +80,37 @@ exports.updateSettings = async (req, res) => {
       }
     });
 
-    // const setting = await OverlaySetting.findOneAndUpdate(
-    //   { userId: req.user.id },
-    //   { $set: updateData },
-    //   { new: true, upsert: true, runValidators: true }
-    // );
-
+    // Update settings di slot yang sedang diedit (A atau B)
     const setting = await OverlaySetting.findOneAndUpdate(
-      { userId: req.user.id, slot },           // query
+      { userId, slot },
       { $set: updateData },
       { 
         new: true, 
         upsert: true,
         runValidators: true,
-        setDefaultsOnInsert: true   // ← tambahkan ini
+        setDefaultsOnInsert: true 
       }
     );
 
+    // ==================== KRITIS: Handle activeSlot ====================
+    if (updateData.activeSlot) {
+      // Selalu simpan activeSlot ke Slot A sebagai MASTER
+      await OverlaySetting.findOneAndUpdate(
+        { userId, slot: 'A' },
+        { $set: { activeSlot: updateData.activeSlot } },
+        { 
+          upsert: true, 
+          setDefaultsOnInsert: true 
+        }
+      );
+      
+      console.log(`✅ [activeSlot] Master activeSlot diubah menjadi: ${updateData.activeSlot}`);
+    }
+
     res.json({ 
       message: 'Settings updated!', 
-      data: setting 
+      data: setting,
+      activeSlot: updateData.activeSlot || setting.activeSlot
     });
 
   } catch (err) {
