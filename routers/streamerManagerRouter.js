@@ -85,6 +85,11 @@ router.put('/:id/change-role', authMiddleware, superAdminOnly, async (req, res) 
   }
 });
 
+router.put('/mark-role-upgrade-notified', authMiddleware, async (req, res) => {
+  await User.findByIdAndUpdate(req.user._id, { roleUpgradeNotified: true });
+  res.json({ success: true });
+});
+
 // ─── TOGGLE aktif/nonaktif ────────────────────────────────────────────────────
 // PUT /api/streamer-manage/:id/toggle-active
 router.put('/:id/toggle-active', authMiddleware, superAdminOnly, async (req, res) => {

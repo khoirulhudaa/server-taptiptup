@@ -97,6 +97,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    roleUpgradeNotified: {
+      type: Boolean,
+      default: false, // false = belum pernah lihat modal ucapan selamat
+    },
   },
   { timestamps: true }
 );
