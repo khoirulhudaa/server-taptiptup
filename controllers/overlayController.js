@@ -168,18 +168,25 @@ exports.getPublicProfile = async (req, res) => {
 // ============================================================
 exports.getOverlaySettings = async (req, res) => {
   try {
-    const user = await User.findOne({ overlayToken: req.params.token }).lean();
-
+    const user = await User.findOne({ overlayToken: req.params.token });
     if (!user) return res.status(404).json({ message: 'Token tidak valid' });
 
-    const slot = (req.query.slot || 'A').toUpperCase();  
+    const slot = (req.query.slot || 'A').toUpperCase();
 
-    const overlaySetting = await OverlaySetting.findOne({ 
+    const setting = await OverlaySetting.findOne({ 
       userId: user._id, 
       slot 
     }).lean();
-    
-    res.json(overlaySetting || {});
+
+    // Pastikan activeSlot selalu ada di response
+    const responseData = setting || { activeSlot: 'A' };
+
+    // Jika slot A, pastikan activeSlot terisi
+    if (slot === 'A' && !responseData.activeSlot) {
+      responseData.activeSlot = 'A';
+    }
+
+    res.json(responseData);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
