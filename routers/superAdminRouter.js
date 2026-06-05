@@ -2,11 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
-// const superAdminMiddleware = require('../middleware/superAdminMiddleware');
+const superAdminMiddleware = require('../middleware/superAdminMiddleware');
 const { User, Donation, Withdrawal } = require('../models');
 const mongoose = require('mongoose');
 
-router.get('/stats', authMiddleware, async (req, res) => {
+router.get('/stats', authMiddleware, superAdminMiddleware, async (req, res) => {
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
