@@ -12,6 +12,13 @@ const superAdminOnly = (req, res, next) => {
   next();
 };
 
+const superAdminOnlyNew = (req, res, next) => {
+  if (req.user?.role !== 'superAdmin') {
+    return res.status(403).json({ message: 'Akses ditolak. Khusus Super Admin!' });
+  }
+  next();
+};
+
 // ─── GET daftar semua user (dengan pagination + search) ──────────────────────
 // GET /api/streamer-manage?page=1&limit=20&search=keyword&status=active|inactive
 router.get('/', authMiddleware, superAdminOnly, async (req, res) => {
@@ -76,7 +83,7 @@ router.put('/mark-role-upgrade-notified', authMiddleware, async (req, res) => {
   }
 });
 
-router.put('/:id/change-role', authMiddleware, superAdminOnly, async (req, res) => {
+router.put('/:id/change-role', authMiddleware, superAdminOnlyNew, async (req, res) => {
   try {
     const { role } = req.body;
 
