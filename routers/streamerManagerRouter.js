@@ -6,7 +6,7 @@ const { User } = require('../models');
 
 // Middleware: hanya superAdmin
 const superAdminOnly = (req, res, next) => {
-  if (req.user?.role !== 'superAdmin') {
+  if (req.user?.role !== 'superAdmin' && req.user?.role !== 'streamerSuper') {
     return res.status(403).json({ message: 'Akses ditolak. Super Admin only.' });
   }
   next();
