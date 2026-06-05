@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Maintenance } = require('../models');
 const auth = require('../middleware/authMiddleware');
+const superAdminMiddleware = require('../middleware/superAdminMiddleware');
 
 // GET settings - Boleh diakses oleh semua user yang login
 router.get('/settings', auth, async (req, res) => {
@@ -36,11 +37,8 @@ router.get('/public', async (req, res) => {
 });
 
 // UPDATE settings - Hanya Super Admin yang boleh
-router.put('/settings', auth, async (req, res) => {
+router.put('/settings', auth, superAdminMiddleware, async (req, res) => {
   try {
-    if (req.user.role !== 'superAdmin') {
-      return res.status(403).json({ message: 'Akses ditolak.' });
-    }
 
     const { auth, supporter, withdrawal, dashboard } = req.body;
 
