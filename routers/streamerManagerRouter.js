@@ -59,8 +59,21 @@ router.get('/', authMiddleware, superAdminOnly, async (req, res) => {
 });
 
 router.put('/mark-role-upgrade-notified', authMiddleware, async (req, res) => {
-  await User.findByIdAndUpdate(req.user._id, { roleUpgradeNotified: true });
-  res.json({ success: true });
+  console.log('req.user:', req.user); // lihat strukturnya
+  console.log('_id:', req.user?._id);
+  console.log('id:', req.user?.id);
+  
+  try {
+    const result = await User.findByIdAndUpdate(
+      req.user.id || req.user._id, // fallback dua-duanya
+      { roleUpgradeNotified: true },
+      { new: true }
+    );
+    console.log('result:', result?.roleUpgradeNotified); // harusnya true
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 router.put('/:id/change-role', authMiddleware, superAdminOnly, async (req, res) => {
