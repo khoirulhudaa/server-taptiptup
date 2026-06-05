@@ -58,6 +58,11 @@ router.get('/', authMiddleware, superAdminOnly, async (req, res) => {
   }
 });
 
+router.put('/mark-role-upgrade-notified', authMiddleware, async (req, res) => {
+  await User.findByIdAndUpdate(req.user._id, { roleUpgradeNotified: true });
+  res.json({ success: true });
+});
+
 router.put('/:id/change-role', authMiddleware, superAdminOnly, async (req, res) => {
   try {
     const { role } = req.body;
@@ -83,11 +88,6 @@ router.put('/:id/change-role', authMiddleware, superAdminOnly, async (req, res) 
     console.error('change-role:', err);
     res.status(500).json({ message: 'Server error' });
   }
-});
-
-router.put('/mark-role-upgrade-notified', authMiddleware, async (req, res) => {
-  await User.findByIdAndUpdate(req.user._id, { roleUpgradeNotified: true });
-  res.json({ success: true });
 });
 
 // ─── TOGGLE aktif/nonaktif ────────────────────────────────────────────────────

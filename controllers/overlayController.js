@@ -50,6 +50,7 @@ exports.getSettings = async (req, res) => {
     res.status(500).json({ message: 'Server Error' });
   }
 };
+
 exports.updateSettings = async (req, res) => {
   try {
     const userId = req.user.id;
