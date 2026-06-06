@@ -11,7 +11,11 @@ const updateAvailableBalance = require('./cron/updateAvailableBalance');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString(); // ← wajib untuk verifyDokuSignature
+  }
+}));
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' },

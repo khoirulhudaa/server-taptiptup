@@ -149,23 +149,138 @@ exports.createDonation = async (req, res) => {
     return res.status(500).json({ message: 'Gagal membuat invoice', details: err.message });
   }
 };
-
-// ── POST /api/doku-payment/webhook ────────────────────────────────────────────
-// Doku mengirim notifikasi ke sini untuk: SUCCESS, FAILED, EXPIRED
+function verifyDokuSignature(req) {
+  try {
+    const clientId         = req.headers['client-id']          || '';
+    const requestId        = req.headers['request-id']         || '';
+    const requestTimestamp = req.headers['request-timestamp']  || '';
+    const signature        = req.headers['signature']          || '';
+ 
+    // Digest: SHA-256 dari raw body (gunakan express.raw atau simpan rawBody)
+    const rawBody  = req.rawBody || JSON.stringify(req.body);
+    const bodyHash = crypto
+      .createHash('sha256')
+      .update(rawBody)
+      .digest('base64');
+ 
+    const componentToSign =
+      `Client-Id:${clientId}\n` +
+      `Request-Id:${requestId}\n` +
+      `Request-Timestamp:${requestTimestamp}\n` +
+      `Digest:SHA-256=${bodyHash}`;
+ 
+    const expectedSignature =
+      'HMACSHA256=' +
+      crypto
+        .createHmac('sha256', process.env.DOKU_SECRET_KEY)
+        .update(componentToSign)
+        .digest('base64');
+ 
+    return signature === expectedSignature;
+  } catch (err) {
+    console.error('[Doku] verifySignature error:', err.message);
+    return false;
+  }
+}
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+// INQUIRY URL
+// Doku akan hit endpoint ini sebelum memproses pembayaran untuk memverifikasi
+// bahwa order benar-benar ada dan valid di sistem kamu.
+//
+// Daftarkan di dashboard Doku sebagai "Inquiry URL"
+// Route contoh: POST /api/payment/doku/inquiry
+// ─────────────────────────────────────────────────────────────────────────────
+exports.handleInquiry = async (req, res) => {
+  console.log('\n========== [DOKU INQUIRY] ==========');
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body   :', JSON.stringify(req.body,    null, 2));
+ 
+  // 1. Validasi signature
+  if (!verifyDokuSignature(req)) {
+    console.warn('[Doku Inquiry] ❌ Signature tidak valid');
+    return res.status(401).json({
+      order: { status: 'INVALID_SIGNATURE' },
+    });
+  }
+ 
+  // 2. Ambil invoice_number dari body (Doku kirim via POST JSON)
+  const invoiceNumber = req.body?.order?.invoice_number;
+  if (!invoiceNumber) {
+    return res.status(400).json({
+      order: { status: 'BAD_REQUEST', invoice_number: null },
+    });
+  }
+ 
+  try {
+    const donation = await Donation.findOne({ externalId: invoiceNumber });
+ 
+    // Order tidak ditemukan → beritahu Doku agar tidak lanjut proses
+    if (!donation) {
+      console.warn(`[Doku Inquiry] Order tidak ditemukan: ${invoiceNumber}`);
+      return res.status(200).json({
+        order: {
+          invoice_number: invoiceNumber,
+          status:         'NOT_FOUND',
+        },
+      });
+    }
+ 
+    // Order sudah dibayar / expired → tolak duplikasi
+    if (donation.status !== 'PENDING') {
+      console.log(`[Doku Inquiry] Order ${invoiceNumber} sudah berstatus ${donation.status}`);
+      return res.status(200).json({
+        order: {
+          invoice_number: invoiceNumber,
+          amount:         donation.amount,
+          status:         donation.status, // PAID | EXPIRED | FAILED
+        },
+      });
+    }
+ 
+    // Order PENDING → izinkan Doku lanjut proses pembayaran
+    console.log(`[Doku Inquiry] ✅ Order valid: ${invoiceNumber}`);
+    return res.status(200).json({
+      order: {
+        invoice_number: invoiceNumber,
+        amount:         donation.amount,
+        status:         'PENDING',
+      },
+    });
+ 
+  } catch (err) {
+    console.error('[Doku Inquiry] Error:', err);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYMENT NOTIFICATION URL
+// Doku hit endpoint ini setelah pembayaran selesai (SUCCESS / FAILED / EXPIRED)
+//
+// Daftarkan di dashboard Doku sebagai "Notification URL"
+// Route contoh: POST /api/payment/doku/webhook
+// ─────────────────────────────────────────────────────────────────────────────
 exports.handleWebhook = async (req, res) => {
   console.log('\n========== [DOKU PAYMENT WEBHOOK] ==========');
   console.log('Body:', JSON.stringify(req.body, null, 2));
-
+ 
+  // 1. Validasi signature — WAJIB ada sebelum logika apapun
+  if (!verifyDokuSignature(req)) {
+    console.warn('[Doku Webhook] ❌ Signature tidak valid');
+    return res.status(401).json({ message: 'Invalid signature' });
+  }
+ 
   try {
     const { order, transaction } = req.body;
     const invoiceNumber = order?.invoice_number;
-    const dokuStatus = transaction?.status;   // SUCCESS | FAILED | EXPIRED
-
+    const dokuStatus    = transaction?.status; // SUCCESS | FAILED | EXPIRED
+ 
     if (!invoiceNumber || !dokuStatus) {
       return res.status(400).json({ message: 'Invalid payload' });
     }
-
-    // ── EXPIRED ───────────────────────────────────────────────────────────────
+ 
+    // ── EXPIRED ─────────────────────────────────────────────────────────────
     if (dokuStatus === 'EXPIRED') {
       await Donation.findOneAndUpdate(
         { externalId: invoiceNumber, status: 'PENDING' },
@@ -174,8 +289,8 @@ exports.handleWebhook = async (req, res) => {
       console.log(`[Doku Webhook] Donasi ${invoiceNumber} => EXPIRED`);
       return res.status(200).json({ message: 'OK' });
     }
-
-    // ── FAILED ────────────────────────────────────────────────────────────────
+ 
+    // ── FAILED ───────────────────────────────────────────────────────────────
     if (dokuStatus === 'FAILED') {
       await Donation.findOneAndUpdate(
         { externalId: invoiceNumber, status: 'PENDING' },
@@ -184,23 +299,25 @@ exports.handleWebhook = async (req, res) => {
       console.log(`[Doku Webhook] Donasi ${invoiceNumber} => FAILED`);
       return res.status(200).json({ message: 'OK' });
     }
-
-    // ── SUCCESS ───────────────────────────────────────────────────────────────
+ 
+    // ── Abaikan status selain SUCCESS ────────────────────────────────────────
     if (dokuStatus !== 'SUCCESS') {
       return res.status(200).json({ message: 'Status ignored' });
     }
-
+ 
+    // ── SUCCESS ──────────────────────────────────────────────────────────────
     const session = await mongoose.startSession();
     session.startTransaction();
     let committed = false;
-
+ 
     try {
       const dataDonasi = await Donation.findOneAndUpdate(
         { externalId: invoiceNumber, status: 'PENDING' },
         { $set: { status: 'PAID' } },
         { new: true, session }
       ).populate('userId');
-
+ 
+      // Idempoten: sudah diproses sebelumnya
       if (!dataDonasi) {
         console.log(`[Doku Webhook] Duplikat/tidak ditemukan: ${invoiceNumber} — skip`);
         await session.commitTransaction();
@@ -208,7 +325,7 @@ exports.handleWebhook = async (req, res) => {
         session.endSession();
         return res.status(200).json({ message: 'OK' });
       }
-
+ 
       const streamer = dataDonasi.userId;
       if (!streamer) {
         await session.commitTransaction();
@@ -216,27 +333,29 @@ exports.handleWebhook = async (req, res) => {
         session.endSession();
         return res.status(200).json({ message: 'OK' });
       }
-
+ 
       const nominalInput    = parseFloat(dataDonasi.amount);
       const streamerReceive = parseFloat(dataDonasi.streamerReceive || dataDonasi.amount);
       const availableAt     = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
+ 
       // Update milestone
       const milestones = ['10k', '50k', '100k', '500k', '1jt'];
       const milestoneUpdates = {};
       for (const milestone of milestones) {
-        const milestoneAmount = parseInt(milestone.replace('k', '000').replace('jt', '000000'));
+        const milestoneAmount = parseInt(
+          milestone.replace('k', '000').replace('jt', '000000')
+        );
         if (nominalInput >= milestoneAmount) {
           milestoneUpdates[`donationMilestones.${milestone}`] = true;
         }
       }
-
+ 
       await Donation.findByIdAndUpdate(
         dataDonasi._id,
         { $set: { availableAt, isAvailable: false, streamerReceive } },
         { session }
       );
-
+ 
       await User.findByIdAndUpdate(
         streamer._id,
         {
@@ -249,12 +368,13 @@ exports.handleWebhook = async (req, res) => {
         },
         { session }
       );
-
+ 
       await session.commitTransaction();
       committed = true;
       session.endSession();
-
-      // ── Post-commit: poll, subathon, overlay ─────────────────────────────
+ 
+      // ── Post-commit: poll, subathon, overlay ──────────────────────────────
+ 
       // Poll
       if (dataDonasi.pollVote?.pollId && dataDonasi.pollVote?.optionId) {
         try {
@@ -274,7 +394,7 @@ exports.handleWebhook = async (req, res) => {
           console.error('[Doku Webhook] Poll error:', pollErr.message);
         }
       }
-
+ 
       // Subathon
       try {
         const subathonResult = await subathonCtrl.handleDonationPaid(req, streamer._id, nominalInput);
@@ -287,16 +407,16 @@ exports.handleWebhook = async (req, res) => {
       } catch (subErr) {
         console.error('[Doku Webhook] Subathon error:', subErr.message);
       }
-
+ 
       // Overlay / socket
       const io = req.app.get('socketio');
       if (io && streamer.overlayToken) {
-        const overlaySetting = await OverlaySetting.findOne({ userId: streamer._id });
-        const soundUrl = overlaySetting?.getSoundForAmount
+        const overlaySetting  = await OverlaySetting.findOne({ userId: streamer._id });
+        const soundUrl        = overlaySetting?.getSoundForAmount
           ? overlaySetting.getSoundForAmount(nominalInput)
           : (overlaySetting?.soundUrl || null);
         const displayDuration = getDisplayDuration(nominalInput, overlaySetting);
-
+ 
         if (dataDonasi.voiceUrl) {
           io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', {
             donorName:  dataDonasi.donorName,
@@ -307,26 +427,26 @@ exports.handleWebhook = async (req, res) => {
             receivedAt: new Date().toISOString(),
           });
         }
-
+ 
         const payload = {
           donorName:    dataDonasi.donorName,
           amount:       nominalInput,
           message:      dataDonasi.message,
-          voiceUrl:     dataDonasi.voiceUrl   || null,
-          mediaUrl:     dataDonasi.mediaUrl   || null,
-          mediaType:    dataDonasi.mediaType  || null,
+          voiceUrl:     dataDonasi.voiceUrl    || null,
+          mediaUrl:     dataDonasi.mediaUrl    || null,
+          mediaType:    dataDonasi.mediaType   || null,
           isMediaShare: dataDonasi.isMediaShare || !!dataDonasi.mediaUrl,
-          startTime:    dataDonasi.startTime  || 0,
-          soundUrl:     dataDonasi.soundUrl   || soundUrl,
+          startTime:    dataDonasi.startTime   || 0,
+          soundUrl:     dataDonasi.soundUrl    || soundUrl,
           videoBlocked: dataDonasi.videoBlocked || false,
           blockReason:  dataDonasi.blockReason  || null,
           receivedAt:   new Date().toISOString(),
         };
-
+ 
         donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
         console.log(`[Doku Webhook] ✅ Donasi "${dataDonasi.donorName}" masuk antrian @${streamer.username}`);
       }
-
+ 
     } catch (err) {
       if (!committed) {
         try { await session.abortTransaction(); } catch {}
@@ -335,12 +455,13 @@ exports.handleWebhook = async (req, res) => {
       console.error('[Doku Webhook] Error:', err);
       return res.status(500).json({ message: 'Internal Server Error' });
     }
-
+ 
     console.log('========== [DOKU WEBHOOK SELESAI] ==========\n');
     return res.status(200).json({ message: 'OK' });
-
+ 
   } catch (err) {
     console.error('[Doku Webhook] Outer error:', err);
     return res.status(500).json({ message: err.message });
   }
 };
+ 
