@@ -92,18 +92,10 @@ exports.createDonation = async (req, res) => {
     const dokuPayload = {
         order: {
             invoice_number: orderId,
-            amount: grossAmount,          // ← hanya amount & invoice_number yang wajib
-            currency: 'IDR',
-            callback_url: `${BASE_URL}/donation/success?username=${streamer.username}`,
-            callback_url_cancel: `${BASE_URL}/donation/failed?username=${streamer.username}`,
-            auto_redirect: false,
+            amount: grossAmount,
         },
         payment: {
             payment_due_date: 60,
-        },
-        customer: {
-            name: donorName || 'Anonim',
-            email: email || 'guest@mail.com',
         },
     };
 

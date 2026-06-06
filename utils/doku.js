@@ -6,12 +6,11 @@ const SECRET_KEY = process.env.SBK_DOKU_SECRET_KEY;
 const BASE_URL   = process.env.SBK_DOKU_BASE_URL || 'https://api-sandbox.doku.com';
 
 const generateSignature = (requestId, requestTimestamp, requestTarget, body) => {
-  // Hash body dulu
+  const bodyString = body ? JSON.stringify(body) : '';
   const bodyHash = body
-    ? crypto.createHash('sha256').update(JSON.stringify(body)).digest('base64')
+    ? crypto.createHash('sha256').update(bodyString).digest('base64')
     : '';
 
-  // Komponen signature — urutan HARUS persis ini
   const components = [
     `Client-Id:${CLIENT_ID}`,
     `Request-Id:${requestId}`,
@@ -19,12 +18,16 @@ const generateSignature = (requestId, requestTimestamp, requestTarget, body) => 
     `Request-Target:${requestTarget}`,
   ];
 
-  // Digest hanya ditambah kalau ada body
   if (bodyHash) components.push(`Digest:SHA-256=${bodyHash}`);
 
   const componentSignature = components.join('\n');
 
-  console.log('[Doku Signature] Component:\n', componentSignature);
+  console.log('=== SIGNATURE DEBUG ===');
+  console.log('CLIENT_ID:', CLIENT_ID);
+  console.log('SECRET_KEY length:', SECRET_KEY?.length);
+  console.log('requestTarget:', requestTarget);
+  console.log('componentSignature:\n', componentSignature);
+  console.log('======================');
 
   const signature = crypto
     .createHmac('sha256', SECRET_KEY)
