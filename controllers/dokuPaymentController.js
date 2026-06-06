@@ -6,6 +6,7 @@ const { filterMessage } = require('./bannedWordController');
 const subathonCtrl = require('./subathonController');
 const { donationQueue } = require('../utils/donationQueue');
 const { checkYouTubeVideo } = require('../utils/checkYoutube');
+const crypto = require('crypto'); // ← TAMBAH INI di baris paling atas
 
 const BASE_URL = process.env.NODE_ENV === 'production'
   ? process.env.FRONTEND_URL
