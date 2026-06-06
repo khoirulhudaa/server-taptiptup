@@ -1,19 +1,22 @@
+// utils/doku.js — FINAL
 const crypto = require('crypto');
 const axios  = require('axios');
-require('dotenv').config();
 
-const CLIENT_ID  = "BRN-0203-1780730151932";
-const SECRET_KEY = "SK-3bM8tQODtoZulU09RVOq";
-const BASE_URL   = 'https://api-sandbox.doku.com';
+const CLIENT_ID  = process.env.SBK_DOKU_CLIENT_ID;
+const SECRET_KEY = process.env.SBK_DOKU_SECRET_KEY;
+const BASE_URL   = process.env.SBK_DOKU_BASE_URL || 'https://api-sandbox.doku.com';
 
 const dokuRequest = async (method, path, body = null) => {
   const requestId        = crypto.randomUUID();
   const requestTimestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
   const bodyString       = body ? JSON.stringify(body) : null;
 
-  const isCheckout = path.startsWith('/checkout');
+  // Digest wajib untuk POST
+  const bodyHash = bodyString
+    ? crypto.createHash('sha256').update(bodyString).digest('base64')
+    : null;
 
-  // Component signature — Digest TIDAK dimasukkan untuk checkout
+  // Component signature — Digest WAJIB untuk POST
   const components = [
     `Client-Id:${CLIENT_ID}`,
     `Request-Id:${requestId}`,
@@ -21,12 +24,11 @@ const dokuRequest = async (method, path, body = null) => {
     `Request-Target:${path}`,
   ];
 
-  if (!isCheckout && bodyString) {
-    const bodyHash = crypto.createHash('sha256').update(bodyString).digest('base64');
-    components.push(`Digest:SHA-256=${bodyHash}`);
-  }
+  if (bodyHash) components.push(`Digest:${bodyHash}`);
 
   const componentSignature = components.join('\n');
+
+  console.log('[Doku] componentSignature:\n', componentSignature);
 
   const signature = crypto
     .createHmac('sha256', SECRET_KEY)
@@ -41,14 +43,7 @@ const dokuRequest = async (method, path, body = null) => {
     'Content-Type':      'application/json',
   };
 
-  // Digest header juga tidak dikirim untuk checkout
-  if (!isCheckout && bodyString) {
-    const bodyHash = crypto.createHash('sha256').update(bodyString).digest('base64');
-    headers['Digest'] = `SHA-256=${bodyHash}`;
-  }
-
-  console.log('[Doku] path:', path, '| isCheckout:', isCheckout);
-  console.log('[Doku] componentSignature:\n', componentSignature);
+  if (bodyHash) headers['Digest'] = bodyHash;
 
   try {
     const res = await axios({
