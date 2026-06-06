@@ -39,39 +39,50 @@ const generateSignature = (requestId, requestTimestamp, requestTarget, body) => 
 
 const dokuRequest = async (method, path, body = null) => {
   const requestId = crypto.randomUUID();
+  const requestTimestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
-  // ← Format timestamp yang benar untuk Doku
-  const now = new Date();
-  const requestTimestamp = now.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  // ← Stringify SEKALI, pakai variabel yang sama untuk hash dan request
+  const bodyString = body ? JSON.stringify(body) : null;
 
-  const signature = generateSignature(requestId, requestTimestamp, path, body);
+  const bodyHash = bodyString
+    ? crypto.createHash('sha256').update(bodyString).digest('base64')
+    : '';
+
+  const components = [
+    `Client-Id:${CLIENT_ID}`,
+    `Request-Id:${requestId}`,
+    `Request-Timestamp:${requestTimestamp}`,
+    `Request-Target:${path}`,
+  ];
+  if (bodyHash) components.push(`Digest:SHA-256=${bodyHash}`);
+
+  const componentSignature = components.join('\n');
+
+  const signature = crypto
+    .createHmac('sha256', SECRET_KEY)
+    .update(componentSignature)
+    .digest('base64');
 
   const headers = {
     'Client-Id':         CLIENT_ID,
     'Request-Id':        requestId,
     'Request-Timestamp': requestTimestamp,
-    'Signature':         signature,
+    'Signature':         `HMACSHA256=${signature}`,
     'Content-Type':      'application/json',
   };
 
-  // Digest header harus sama persis dengan yang di signature
-  if (body) {
-    const bodyHash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(body))
-      .digest('base64');
-    headers['Digest'] = `SHA-256=${bodyHash}`;
-  }
+  if (bodyHash) headers['Digest'] = `SHA-256=${bodyHash}`;
 
-  console.log('[Doku Request]', method, `${BASE_URL}${path}`);
-  console.log('[Doku Headers]', headers);
+  console.log('[Body String]:', bodyString);
+  console.log('[Body Hash]:', bodyHash);
 
   try {
     const res = await axios({
       method,
       url: `${BASE_URL}${path}`,
       headers,
-      data: body || undefined,
+      // ← Kirim bodyString langsung, bukan re-stringify
+      data: bodyString || undefined,
     });
     return res.data;
   } catch (err) {
