@@ -59,7 +59,7 @@ router.post('/mediashare/control', authMiddleware, rateLimitAuth, async (req, re
   res.json({ success: true });
 });
 // ─── Admin ────────────────────────────────────────────────────────────────────
-// GET bisa difilter: ?status=PENDING / COMPLETED / FAILED / (kosong = semua)
+// GET bisa difilter: ?status=PENDING / COMPLETED / FAInvLED / (kosong = semua)
 router.get('/admin/withdrawals', authMiddleware, adminMiddleware, rateLimitAuth, midtransCtrl.adminGetPendingWithdrawals);
 router.put('/admin/withdrawals/:id', authMiddleware, adminMiddleware, rateLimitAuth, midtransCtrl.adminUpdateWithdrawal);
 router.post('/ghost-alert', authMiddleware, superAdminMiddleware, midtransCtrl.sendGhostAlert);

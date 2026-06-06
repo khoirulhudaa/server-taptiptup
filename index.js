@@ -107,6 +107,7 @@ const announcementRoutes = require('./routers/announcementRouter');
 const transferRoutes = require('./routers/transferRouter');
 const maintenanceRoutes = require('./routers/maintenanceRouter');
 const streamerManageRoutes = require('./routers/streamerManagerRouter');
+const disbursementRouter = require('./routers/disbursementRouter');
 
 app.get('/testing', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running!', node_env: process.env.NODE_ENV });
@@ -117,6 +118,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/wa', waRoutes);
 app.use('/api/suggestions', suggestionRoutes);
 app.use('/api/midtrans',     midtransRoutes);
+app.use('/api/disbursement', disbursementRouter);
 app.use('/api/youtube-check',      youtubeCheckRoutes);
 app.use('/api/overlay',      overlayRoutes);
 app.use('/api/auth',         authRoutes);

@@ -26,6 +26,8 @@ const withdrawalSchema = new mongoose.Schema(
       type: String,
       default: null, // alasan reject dari admin (opsional)
     },
+    dokuTransferId: { type: String, default: null },
+    dokuStatus: { type: String, default: null },
   },
   { timestamps: true }
 );
