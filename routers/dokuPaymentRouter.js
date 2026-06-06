@@ -12,7 +12,14 @@ router.post('/create-invoice', rateLimitDonation, dokuPaymentCtrl.createDonation
 
 // Webhook dari Doku (SUCCESS, FAILED, EXPIRED)
 router.post('/webhook', dokuPaymentCtrl.handleWebhook);
-
+router.get('/debug-key', (req, res) => {
+  const key = process.env.SBK_DOKU_SECRET_KEY;
+  res.json({
+    key,
+    length: key?.length,
+    chars: key?.split('').map((c, i) => ({ i, c, code: c.charCodeAt(0) }))
+  });
+});
 router.get('/test-signature', async (req, res) => {
   const CLIENT_ID  = process.env.SBK_DOKU_CLIENT_ID;
   const SECRET_KEY = process.env.SBK_DOKU_SECRET_KEY;

@@ -1,9 +1,10 @@
 const crypto = require('crypto');
 const axios  = require('axios');
+require('dotenv').config();
 
-const CLIENT_ID  = process.env.SBK_DOKU_CLIENT_ID;
-const SECRET_KEY = process.env.SBK_DOKU_SECRET_KEY;
-const BASE_URL   = process.env.SBK_DOKU_BASE_URL || 'https://api-sandbox.doku.com';
+const CLIENT_ID  = "BRN-0203-1780730151932";
+const SECRET_KEY = "SK-3bM8tQODtoZulU09RVOq";
+const BASE_URL   = 'https://api-sandbox.doku.com';
 
 const dokuRequest = async (method, path, body = null) => {
   const requestId        = crypto.randomUUID();
