@@ -90,35 +90,27 @@ exports.createDonation = async (req, res) => {
       .replace(/\.\d{3}Z$/, '+07:00'); // Doku format: ISO8601 +07:00
 
     const dokuPayload = {
-      order: {
-        invoice_number: orderId,
-        line_items: [{
-          name: `Donasi untuk @${streamer.username}`,
-          price: grossAmount,
-          quantity: 1,
-        }],
-        amount: grossAmount,
-        currency: 'IDR',
-        callback_url: `${BASE_URL}/donation/success?username=${streamer.username}`,
-        callback_url_cancel: `${BASE_URL}/donation/failed?username=${streamer.username}`,
-        auto_redirect: false,
-        session_id: orderId,
-        request_expired_time: expiredTime, // ← untuk notifikasi expired
-        disable_retry_payment: false,
-      },
-      payment: {
-        payment_due_date: 60, // menit
-      },
-      customer: {
-        name: donorName || 'Anonim',
-        email: email || 'guest@mail.com',
-      },
+        order: {
+            invoice_number: orderId,
+            amount: grossAmount,          // ← hanya amount & invoice_number yang wajib
+            currency: 'IDR',
+            callback_url: `${BASE_URL}/donation/success?username=${streamer.username}`,
+            callback_url_cancel: `${BASE_URL}/donation/failed?username=${streamer.username}`,
+            auto_redirect: false,
+        },
+        payment: {
+            payment_due_date: 60,
+        },
+        customer: {
+            name: donorName || 'Anonim',
+            email: email || 'guest@mail.com',
+        },
     };
 
-    const dokuRes = await dokuRequest('POST', '/payment-checkout/v1/payment', dokuPayload);
+    const dokuRes = await dokuRequest('POST', '/checkout/v1/payment', dokuPayload);
 
-    if (!dokuRes?.response?.payment_url) {
-      return res.status(500).json({ message: 'Gagal mendapatkan payment URL dari Doku' });
+    if (!dokuRes?.response?.payment?.url) {
+        return res.status(500).json({ message: 'Gagal mendapatkan payment URL dari Doku' });
     }
 
     // Simpan donasi
@@ -148,8 +140,8 @@ exports.createDonation = async (req, res) => {
     });
 
     return res.json({
-      url: dokuRes.response.payment_url,
-      invoiceNumber: orderId,
+        url: dokuRes.response.payment.url,
+        invoiceNumber: orderId,
     });
 
   } catch (err) {
