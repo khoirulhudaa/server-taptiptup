@@ -1,2 +1,21 @@
+# Environment
 .env
-node_modules
+.env.*
+
+# Dependencies
+node_modules/
+
+# Keys & Certificates
+*.pem
+*.key
+*.cert
+
+# Lock files (pilih salah satu sesuai package manager)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
