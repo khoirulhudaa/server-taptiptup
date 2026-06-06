@@ -115,7 +115,7 @@ exports.createDonation = async (req, res) => {
       },
     };
 
-    const dokuRes = await dokuRequest('POST', '/checkout/v1/payment', dokuPayload);
+    const dokuRes = await dokuRequest('POST', '/payment-checkout/v1/payment', dokuPayload);
 
     if (!dokuRes?.response?.payment_url) {
       return res.status(500).json({ message: 'Gagal mendapatkan payment URL dari Doku' });
