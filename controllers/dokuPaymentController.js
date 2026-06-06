@@ -465,3 +465,50 @@ exports.handleWebhook = async (req, res) => {
   }
 };
  
+// ─────────────────────────────────────────────────────────────────────────────
+// BINDING URL
+// Doku hit endpoint ini saat merchant pertama kali didaftarkan / reverifikasi.
+// Harus return 200 + echo token yang dikirim Doku.
+// ─────────────────────────────────────────────────────────────────────────────
+exports.handleBinding = (req, res) => {
+  console.log('\n========== [DOKU BINDING] ==========');
+  console.log('Body   :', JSON.stringify(req.body,    null, 2));
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+
+  // Doku mengirim token verifikasi, kita wajib echo balik
+  const token = req.body?.token || req.query?.token || '';
+
+  return res.status(200).json({
+    token,         // echo token dari Doku
+    status: 'OK',
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPDATE NOTIFY URL (QRIS)
+// Digunakan untuk mendaftarkan/update Notify URL ke Doku untuk channel QRIS
+// ─────────────────────────────────────────────────────────────────────────────
+exports.updateQrisNotifyUrl = async (req, res) => {
+  console.log('\n========== [DOKU UPDATE QRIS NOTIFY URL] ==========');
+
+  try {
+    const notifyUrl = `https://server-ttt-production.up.railway.app/api/doku-payment/webhook`;
+
+    const payload = {
+      notify_url: notifyUrl,
+    };
+
+    const dokuRes = await dokuRequest('POST', '/qris/v1/notify-url', payload);
+
+    console.log('[Doku QRIS] Notify URL updated:', dokuRes);
+    return res.status(200).json({
+      message: 'Notify URL berhasil diupdate',
+      notify_url: notifyUrl,
+      doku_response: dokuRes,
+    });
+
+  } catch (err) {
+    console.error('[Doku QRIS] Update Notify URL error:', err.message);
+    return res.status(500).json({ message: 'Gagal update Notify URL', details: err.message });
+  }
+};
