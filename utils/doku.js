@@ -1,9 +1,9 @@
 const crypto = require('crypto');
 const axios = require('axios');
 
-const CLIENT_ID = process.env.DOKU_CLIENT_ID;
-const SECRET_KEY = process.env.DOKU_SECRET_KEY;
-const BASE_URL = process.env.DOKU_BASE_URL || 'https://api-sandbox.doku.com';
+const CLIENT_ID = process.env.SBK_DOKU_CLIENT_ID;
+const SECRET_KEY = process.env.SBK_DOKU_SECRET_KEY;
+const BASE_URL = process.env.SBK_DOKU_BASE_URL || 'https://api-sandbox.doku.com';
 
 const generateSignature = (requestId, requestTimestamp, requestTarget, accessToken, body) => {
   const bodyHash = body
