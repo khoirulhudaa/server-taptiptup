@@ -12,7 +12,7 @@ router.post('/create-invoice', rateLimitDonation, dokuPaymentCtrl.createDonation
 
 // Webhook dari Doku (SUCCESS, FAILED, EXPIRED)
 router.post('/webhook', dokuPaymentCtrl.handleWebhook);
-router.post('/doku/inquiry',  dokuCtrl.handleInquiry);
+router.post('/doku/inquiry',  dokuPaymentCtrl.handleInquiry);
 router.post('/binding', dokuPaymentCtrl.handleBinding);
 router.get('/binding',  dokuPaymentCtrl.handleBinding);
 router.post('/qris/update-notify-url', authMiddleware, dokuPaymentCtrl.updateQrisNotifyUrl);
