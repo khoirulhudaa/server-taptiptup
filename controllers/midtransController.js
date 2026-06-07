@@ -958,10 +958,11 @@ exports.getAvailableBalance = async (req, res) => {
       const user = await User.findById(req.user.id);
       if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
 
-      if (!user.twoFactorSecret) {
-        const secret = speakeasy.generateSecret({ name: `TTT Streamer (${user.email || user.username})` });
-        user.twoFactorSecret = secret.base32;
-      }
+      // Generate secret baru, tapi JANGAN enable dulu
+      const secret = speakeasy.generateSecret({ name: `TTT Streamer (${user.email || user.username})` });
+      user.twoFactorSecret = secret.base32;
+      user.twoFactorEnabled = false; // ← tetap false sampai diverifikasi
+      await user.save();
 
       const otpauth = speakeasy.otpauthURL({
         secret: user.twoFactorSecret,
@@ -971,8 +972,6 @@ exports.getAvailableBalance = async (req, res) => {
       });
 
       const qrCodeUrl = await QRCode.toDataURL(otpauth);
-      user.twoFactorEnabled = true;
-      await user.save();
 
       res.json({
         success: true,
@@ -987,15 +986,46 @@ exports.getAvailableBalance = async (req, res) => {
     }
   };
 
-// ====================== CEK STATUS 2FA ======================
-exports.get2FAStatus = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    res.json({
-      twoFactorEnabled: user?.twoFactorEnabled || false,
-      hasSecret: !!user?.twoFactorSecret
-    });
-  } catch (err) {
-    res.status(500).json({ message: 'Gagal mengambil status' });
-  }
-};
+  exports.verify2FA = async (req, res) => {
+    try {
+      const { totpCode } = req.body;
+      const user = await User.findById(req.user.id);
+      if (!user || !user.twoFactorSecret) {
+        return res.status(400).json({ message: 'Belum generate QR Code. Klik Aktifkan dulu.' });
+      }
+
+      const isValid = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token: totpCode,
+        window: 1,
+      });
+
+      if (!isValid) {
+        return res.status(401).json({ message: 'Kode salah. Pastikan waktu HP sudah sinkron.' });
+      }
+
+      // Baru set enabled setelah verifikasi berhasil
+      user.twoFactorEnabled = true;
+      await user.save();
+
+      res.json({ success: true, message: 'Google Authenticator berhasil diaktifkan!' });
+
+    } catch (err) {
+      console.error('[Verify 2FA]', err);
+      res.status(500).json({ message: 'Gagal verifikasi 2FA' });
+    }
+  };
+
+  // ====================== CEK STATUS 2FA ======================
+  exports.get2FAStatus = async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id);
+      res.json({
+        twoFactorEnabled: user?.twoFactorEnabled || false,
+        hasSecret: !!user?.twoFactorSecret
+      });
+    } catch (err) {
+      res.status(500).json({ message: 'Gagal mengambil status' });
+    }
+  };
