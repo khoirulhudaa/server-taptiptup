@@ -101,6 +101,8 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false, // false = belum pernah lihat modal ucapan selamat
     },
+    twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret: { type: String },
   },
   { timestamps: true }
 );

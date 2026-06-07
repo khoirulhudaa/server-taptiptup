@@ -536,24 +536,47 @@ exports.getAvailableBalance = async (req, res) => {
   }
 };
 
-  exports.requestWithdrawal = async (req, res) => {
-    const { amount, paymentMethod, channelCode, accountNumber, accountName, securityPin } = req.body;
-    const userId = req.user.id;
+ exports.requestWithdrawal = async (req, res) => {
+  const { 
+    amount, 
+    paymentMethod, 
+    channelCode, 
+    accountNumber, 
+    accountName, 
+    totpCode   // ← Ganti dari securityPin
+  } = req.body;
 
-    if (!securityPin || securityPin.length !== 4) {
-      return res.status(400).json({ message: "PIN keamanan wajib diisi (4 digit)" });
+  const userId = req.user.id;
+
+  // Validasi TOTP
+  if (!totpCode || totpCode.length !== 6) {
+    return res.status(400).json({ message: "Kode Google Authenticator (6 digit) wajib diisi" });
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
+
+    // Cek apakah 2FA aktif
+    if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+      return res.status(400).json({ message: "Google Authenticator belum diaktifkan. Silakan aktifkan terlebih dahulu." });
     }
 
-    const userPin = await User.findById(userId);
-    if (!userPin.validSecurityPin(securityPin)) {
-      return res.status(404).json({ message: "PIN yang kamu masukkan salah" });
+    // Verifikasi TOTP
+    const { authenticator } = require('otplib');
+    const isValid = authenticator.verify({
+      token: totpCode,
+      secret: user.twoFactorSecret
+    });
+
+    if (!isValid) {
+      return res.status(401).json({ message: "Kode Google Authenticator salah atau sudah kadaluarsa" });
     }
-    
+
+    // ====================== Lanjut Proses Withdrawal ======================
     const WITHDRAW_FEE = 1500;
-
     const grossAmount = parseFloat(amount);
-    const fee = WITHDRAW_FEE;
-    const netAmount = grossAmount - fee;
+    const netAmount = grossAmount - WITHDRAW_FEE;
 
     if (!grossAmount || isNaN(grossAmount) || grossAmount <= 0)
       return res.status(400).json({ message: 'Nominal tidak valid' });
@@ -575,7 +598,6 @@ exports.getAvailableBalance = async (req, res) => {
     session.startTransaction();
 
     try {
-      const user = await User.findById(userId).session(session);
       const availableBalance = parseFloat(user?.availableBalance || 0);
 
       if (grossAmount > availableBalance) {
@@ -586,7 +608,7 @@ exports.getAvailableBalance = async (req, res) => {
         });
       }
 
-      // potong SALDO FULL (tetap gross)
+      // Potong saldo
       await User.findByIdAndUpdate(
         userId,
         {
@@ -598,30 +620,26 @@ exports.getAvailableBalance = async (req, res) => {
         { session }
       );
 
-      // SIMPAN TETAP SCHEMA LAMA (amount = gross)
-      await Withdrawal.create(
-        [
-          {
-            userId,
-            amount: grossAmount,
-            paymentMethod: paymentMethod || 'BANK',
-            channelCode,
-            accountNumber,
-            accountName,
-            status: 'PENDING',
-            midtransReference: referenceNo,
-            note: null,
-          },
-        ],
-        { session }
-      );
+      // Buat record withdrawal
+      await Withdrawal.create([{
+        userId,
+        amount: grossAmount,
+        paymentMethod: paymentMethod || 'BANK',
+        channelCode,
+        accountNumber,
+        accountName,
+        status: 'PENDING',
+        midtransReference: referenceNo,
+        note: null,
+      }], { session });
 
       await session.commitTransaction();
       session.endSession();
 
+      // Kirim notifikasi Telegram
       await sendWithdrawalNotification({
         username: user.username,
-        amount: netAmount, // yang diterima user
+        amount: netAmount,
         paymentMethod: paymentMethod || 'BANK',
         channelCode,
         accountNumber,
@@ -632,19 +650,21 @@ exports.getAvailableBalance = async (req, res) => {
         message: '✅ Penarikan berhasil diajukan!',
         referenceNo,
         status: 'PENDING',
-        detail: `Rp ${grossAmount.toLocaleString('id-ID')} - fee Rp ${fee.toLocaleString('id-ID')} = Rp ${netAmount.toLocaleString('id-ID')}`,
+        detail: `Rp ${grossAmount.toLocaleString('id-ID')} - fee Rp ${WITHDRAW_FEE.toLocaleString('id-ID')} = Rp ${netAmount.toLocaleString('id-ID')}`,
       });
+
     } catch (err) {
       if (session.inTransaction()) await session.abortTransaction();
       session.endSession();
-
       console.error('[requestWithdrawal] Error:', err);
-      return res.status(500).json({
-        message: 'Terjadi kesalahan',
-        error: err.message,
-      });
+      return res.status(500).json({ message: 'Terjadi kesalahan sistem', error: err.message });
     }
-  };
+
+  } catch (err) {
+    console.error('[2FA Withdrawal Error]:', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan saat verifikasi 2FA' });
+  }
+};
 
   // ============================================================
   // GET WITHDRAWAL HISTORY
