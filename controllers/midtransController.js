@@ -8,6 +8,8 @@
   const { donationQueue } = require('../utils/donationQueue');
   const { sendWithdrawalNotification } = require('../utils/telegramNotification');
   const { checkYouTubeVideo } = require('../utils/checkYoutube');
+  const otplib = require('otplib');
+  const authenticator = otplib.authenticator;
   require('dotenv').config();
 
   const isProduction = process.env.NODE_ENV === 'production';
@@ -563,7 +565,6 @@ exports.getAvailableBalance = async (req, res) => {
     }
 
     // Verifikasi TOTP
-    const { authenticator } = require('otplib');
     const isValid = authenticator.verify({
       token: totpCode,
       secret: user.twoFactorSecret
@@ -955,7 +956,6 @@ exports.enable2FA = async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
 
-    const { authenticator } = require('otplib');
     const QRCode = require('qrcode');
 
     // Generate secret jika belum ada
