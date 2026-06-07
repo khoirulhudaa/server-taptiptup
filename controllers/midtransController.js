@@ -268,7 +268,7 @@
 
         console.log(`[FEE WEBHOOK] Nominal Input: Rp${nominalInput} | Streamer Terima: Rp${streamerReceive}`);
 
-        const availableAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const availableAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
 
         const milestones = ['10k', '50k', '100k', '500k', '1jt'];
         const milestoneUpdates = {};
@@ -504,7 +504,7 @@ exports.getAvailableBalance = async (req, res) => {
     const userId = req.user.id;
     const user = await User.findById(userId);
     
-    //强制刷新availableBalance dari donasi yang sudah expired 1 hari
+    //availableBalance dari donasi yang sudah expired 1 hari
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
     // Get sum of available donations
