@@ -20,21 +20,28 @@ const LANG_MAP = {
 };
 
 exports.getVoiceList = (req, res) => res.json({ voices: VOICES });
-
 exports.synthesize = async (req, res) => {
   try {
-    const { text = '', voiceName = 'id-ID-GadisNeural' } = req.body;
+    const { 
+      text = '', 
+      voiceName = 'id-ID-GadisNeural',
+      rate = 1.35   // ← Tambahkan ini
+    } = req.body;
 
-    const cleanText = text.trim().substring(0, 200); // Google TTS max ~200 char
+    const cleanText = text.trim().substring(0, 200);
     if (!cleanText) return res.status(400).json({ message: 'Text kosong' });
 
     const lang = LANG_MAP[voiceName] || 'id';
-    const url  = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${lang}&client=tw-ob`;
+
+    // Google TTS mendukung parameter ttsspeed
+    const speedParam = rate !== 1.35 ? `&ttsspeed=${rate}` : '';
+
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${lang}&client=tw-ob${speedParam}`;
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        'Referer':    'https://translate.google.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://translate.google.com/',
       },
     });
 
@@ -47,6 +54,8 @@ exports.synthesize = async (req, res) => {
 
   } catch (err) {
     console.error('[TTS]', err);
-    if (!res.headersSent) res.status(500).json({ message: 'TTS gagal', error: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'TTS gagal', error: err.message });
+    }
   }
 };
