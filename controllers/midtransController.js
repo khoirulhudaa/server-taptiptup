@@ -8,8 +8,6 @@
   const { donationQueue } = require('../utils/donationQueue');
   const { sendWithdrawalNotification } = require('../utils/telegramNotification');
   const { checkYouTubeVideo } = require('../utils/checkYoutube');
-  const otplib = require('otplib');
-  const authenticator = otplib.authenticator;
   const speakeasy = require('speakeasy');
   const QRCode = require('qrcode');
   require('dotenv').config();
