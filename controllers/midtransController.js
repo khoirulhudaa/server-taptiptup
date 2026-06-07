@@ -10,6 +10,8 @@
   const { checkYouTubeVideo } = require('../utils/checkYoutube');
   const otplib = require('otplib');
   const authenticator = otplib.authenticator;
+  const speakeasy = require('speakeasy');
+  const QRCode = require('qrcode');
   require('dotenv').config();
 
   const isProduction = process.env.NODE_ENV === 'production';
@@ -565,9 +567,11 @@ exports.getAvailableBalance = async (req, res) => {
     }
 
     // Verifikasi TOTP
-    const isValid = authenticator.verify({
+    const isValid = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
       token: totpCode,
-      secret: user.twoFactorSecret
+      window: 1,
     });
 
     if (!isValid) {
@@ -951,41 +955,39 @@ exports.getAvailableBalance = async (req, res) => {
   };
 
   // ====================== ENABLE GOOGLE AUTHENTICATOR ======================
-exports.enable2FA = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
+  exports.enable2FA = async (req, res) => {
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
 
-    const QRCode = require('qrcode');
+      if (!user.twoFactorSecret) {
+        const secret = speakeasy.generateSecret({ name: `TTT Streamer (${user.email || user.username})` });
+        user.twoFactorSecret = secret.base32;
+      }
 
-    // Generate secret jika belum ada
-    if (!user.twoFactorSecret) {
-      user.twoFactorSecret = authenticator.generateSecret();
+      const otpauth = speakeasy.otpauthURL({
+        secret: user.twoFactorSecret,
+        label: user.email || user.username,
+        issuer: 'TTT Streamer',
+        encoding: 'base32',
+      });
+
+      const qrCodeUrl = await QRCode.toDataURL(otpauth);
+      user.twoFactorEnabled = true;
+      await user.save();
+
+      res.json({
+        success: true,
+        qrCodeUrl,
+        secret: user.twoFactorSecret,
+        message: 'Scan QR Code ini menggunakan Google Authenticator'
+      });
+
+    } catch (err) {
+      console.error('[Enable 2FA]', err);
+      res.status(500).json({ message: 'Gagal mengaktifkan 2FA' });
     }
-
-    const otpauth = authenticator.keyuri(
-      user.email || user.username,
-      'TTT Streamer',           // Nama aplikasi
-      user.twoFactorSecret
-    );
-
-    const qrCodeUrl = await QRCode.toDataURL(otpauth);
-
-    user.twoFactorEnabled = true;
-    await user.save();
-
-    res.json({
-      success: true,
-      qrCodeUrl,
-      secret: user.twoFactorSecret,   // hanya untuk debugging, boleh di-hide nanti
-      message: 'Scan QR Code ini menggunakan Google Authenticator'
-    });
-
-  } catch (err) {
-    console.error('[Enable 2FA]', err);
-    res.status(500).json({ message: 'Gagal mengaktifkan 2FA' });
-  }
-};
+  };
 
 // ====================== CEK STATUS 2FA ======================
 exports.get2FAStatus = async (req, res) => {
