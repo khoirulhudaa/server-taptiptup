@@ -536,111 +536,6 @@ exports.getAvailableBalance = async (req, res) => {
   }
 };
 
-
-  // exports.requestWithdrawal = async (req, res) => {
-  //   const { amount, paymentMethod, channelCode, accountNumber, accountName } = req.body;
-  //   const userId = req.user.id;
-    
-  //   const WITHDRAW_FEE = 1500;
-  //   const grossAmount = parseFloat(amount);
-  //   const fee = WITHDRAW_FEE;
-  //   const netAmount = grossAmount - fee;
-  //   // const amt = parseFloat(amount);
-
-  //   if (grossAmount < 20000)
-  //     return res.status(400).json({ message: 'Minimal penarikan adalah Rp 20.000' });
-  //   if (netAmount <= 0)
-  //     return res.status(400).json({ message: 'Nominal terlalu kecil setelah fee' });
-  //   if (grossAmount > availableBalance)
-  //     return res.status(400).json({ message: 'Saldo tidak cukup' });
-  
-  //   if (!amount || isNaN(amt) || amt <= 0)
-  //     return res.status(400).json({ message: 'Nominal tidak valid' });
-  //   if (amt < 20000)
-  //     return res.status(400).json({ message: 'Minimal penarikan adalah Rp 20.000' });
-  //   if (amt > 10000000)
-  //     return res.status(400).json({ message: 'Maksimal penarikan adalah Rp 10.000.000' });
-  //   if (!channelCode || !accountNumber || !accountName)
-  //     return res.status(400).json({ message: 'Data rekening tidak lengkap' });
-  
-  //   const referenceNo = `wd-${userId}-${Date.now()}`;
-  //   const session     = await mongoose.startSession();
-  //   session.startTransaction();
-  
-  //   try {
-  //     // 1. Ambil availableBalance user saat ini
-  //     const user = await User.findById(userId).session(session);
-  //     const availableBalance = parseFloat(user?.availableBalance || 0);
-  
-  //     if (availableBalance < 20000) {
-  //       await session.abortTransaction();
-  //       session.endSession();
-  //       return res.status(400).json({
-  //         message: `Saldo tersedia minimal Rp 20.000. Saldo tersedia: Rp ${availableBalance.toLocaleString('id-ID')}`,
-  //       });
-  //     }
-  
-  //     if (amt > availableBalance) {
-  //       await session.abortTransaction();
-  //       session.endSession();
-  //       return res.status(400).json({
-  //         message: `Saldo tidak cukup. Saldo tersedia: Rp ${availableBalance.toLocaleString('id-ID')}`,
-  //       });
-  //     }
-  
-  //     // 2. Potong availableBalance dan walletBalance (keduanya harus berkurang)
-  //     // Tidak ada fee tambahan — 2.5% sudah dipotong saat donasi masuk
-  //     await User.findOneAndUpdate(
-  //       { _id: userId, availableBalance: { $gte: amt } },
-  //       {
-  //         $inc: {
-  //           availableBalance: -grossAmount,
-  //           walletBalance:    -grossAmount,
-  //         }
-  //       },
-  //       { new: true, session }
-  //     );
-  
-  //     // 3. Buat record withdrawal
-  //     await Withdrawal.create([{
-  //       userId,
-  //       amount: netAmount,
-  //       paymentMethod: paymentMethod || 'BANK',
-  //       channelCode,
-  //       accountNumber,
-  //       accountName,
-  //       status: 'PENDING',
-  //       midtransReference: referenceNo,
-  //       note: null,
-  //     }], { session });
-  
-  //     await session.commitTransaction();
-  //     session.endSession();
-
-  //     await sendWithdrawalNotification({
-  //       username: user.username,
-  //       amount: amt,
-  //       paymentMethod: paymentMethod || 'BANK',
-  //       channelCode,
-  //       accountNumber,
-  //       accountName,
-  //     });
-  
-  //     res.json({
-  //       message: '✅ Penarikan berhasil diajukan!',
-  //       referenceNo,
-  //       status: 'PENDING',
-  //       detail: `Rp ${amt.toLocaleString('id-ID')} → ${channelCode} ${accountNumber}`,
-  //     });
-  
-  //   } catch (err) {
-  //     if (session.inTransaction()) await session.abortTransaction();
-  //     session.endSession();
-  //     console.error('[requestWithdrawal] Error:', err);
-  //     res.status(500).json({ message: 'Terjadi kesalahan', error: err.message });
-  //   }
-  // };
-
   exports.requestWithdrawal = async (req, res) => {
     const { amount, paymentMethod, channelCode, accountNumber, accountName, securityPin } = req.body;
     const userId = req.user.id;
@@ -651,7 +546,7 @@ exports.getAvailableBalance = async (req, res) => {
 
     const userPin = await User.findById(userId);
     if (!userPin.validSecurityPin(securityPin)) {
-      return res.status(401).json({ message: "PIN yang kamu masukkan salah" });
+      return res.status(404).json({ message: "PIN yang kamu masukkan salah" });
     }
     
     const WITHDRAW_FEE = 1500;
