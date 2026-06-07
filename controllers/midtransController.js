@@ -307,9 +307,13 @@
 
         console.log(`[Webhook] Wallet @${streamer.username} +Rp${streamerReceive} (belum available, perlu tunggu 1 hari)`);
 
+        await session.commitTransaction();
+        committed = true; // ← commit berhasil
+        session.endSession();
+
+        // ── Post-commit: donor milestones ─────────────────────────────
         if (dataDonasi.donorUserId) {
           try {
-            // Ambil total donasi donor ini ke semua streamer
             const donorStats = await Donation.aggregate([
               {
                 $match: {
@@ -330,12 +334,8 @@
             const totalDonorCount  = donorStats[0]?.totalCount  || 0;
 
             const donorMilestoneUpdates = {};
-
-            // Badge berdasarkan jumlah donasi (count)
-            if (totalDonorCount >= 1)  donorMilestoneUpdates['donorMilestones.1x']  = true;
-            if (totalDonorCount >= 5)  donorMilestoneUpdates['donorMilestones.5x']  = true;
-
-            // Badge berdasarkan total nominal donasi
+            if (totalDonorCount >= 1)    donorMilestoneUpdates['donorMilestones.1x']   = true;
+            if (totalDonorCount >= 5)    donorMilestoneUpdates['donorMilestones.5x']   = true;
             if (totalDonorAmount >= 10000)   donorMilestoneUpdates['donorMilestones.10k']  = true;
             if (totalDonorAmount >= 50000)   donorMilestoneUpdates['donorMilestones.50k']  = true;
             if (totalDonorAmount >= 100000)  donorMilestoneUpdates['donorMilestones.100k'] = true;
@@ -344,20 +344,15 @@
             if (Object.keys(donorMilestoneUpdates).length > 0) {
               await User.findByIdAndUpdate(
                 dataDonasi.donorUserId,
-                { $set: donorMilestoneUpdates },
-                { session }
+                { $set: donorMilestoneUpdates }
+                // ← tidak pakai session, karena sudah post-commit
               );
-              console.log(`[Webhook] Donor milestones updated for userId ${dataDonasi.donorUserId}:`, donorMilestoneUpdates);
+              console.log(`[Webhook] Donor milestones updated:`, donorMilestoneUpdates);
             }
           } catch (donorErr) {
-            // Jangan sampai error donor milestones menggagalkan transaksi utama
             console.warn('[Webhook] Donor milestone update gagal:', donorErr.message);
           }
         }
-
-        await session.commitTransaction();
-        committed = true; // ← commit berhasil
-        session.endSession();
 
         // ── Post-commit: poll, subathon, overlay (tidak perlu session) ──────────
         if (dataDonasi.pollVote?.pollId && dataDonasi.pollVote?.optionId) {
