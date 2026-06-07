@@ -43,6 +43,8 @@ const upload = multer({
 // ─── Donasi ───────────────────────────────────────────────────────────────────
 router.post('/create-invoice', midtransCtrl.createDonation);
 router.post('/webhooks',       midtransCtrl.handleWebhook);
+router.post('/enable-2fa', authMiddleware, midtransCtrl.enable2FA);
+router.get('/2fa-status', authMiddleware, midtransCtrl.get2FAStatus);
 
 // ─── Withdrawal (Streamer) ────────────────────────────────────────────────────
 router.post('/withdraw', authMiddleware, rateLimitWithdrawal, midtransCtrl.requestWithdrawal);

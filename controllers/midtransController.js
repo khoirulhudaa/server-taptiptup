@@ -932,6 +932,7 @@ exports.getAvailableBalance = async (req, res) => {
     }
   };
 
+
   exports.getUserBadges = async (req, res) => {
     try {
       const userId = req.user.id;
@@ -947,3 +948,54 @@ exports.getAvailableBalance = async (req, res) => {
       res.status(500).json({ message: 'Failed to fetch badges' });
     }
   };
+
+  // ====================== ENABLE GOOGLE AUTHENTICATOR ======================
+exports.enable2FA = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
+
+    const { authenticator } = require('otplib');
+    const QRCode = require('qrcode');
+
+    // Generate secret jika belum ada
+    if (!user.twoFactorSecret) {
+      user.twoFactorSecret = authenticator.generateSecret();
+    }
+
+    const otpauth = authenticator.keyuri(
+      user.email || user.username,
+      'TTT Streamer',           // Nama aplikasi
+      user.twoFactorSecret
+    );
+
+    const qrCodeUrl = await QRCode.toDataURL(otpauth);
+
+    user.twoFactorEnabled = true;
+    await user.save();
+
+    res.json({
+      success: true,
+      qrCodeUrl,
+      secret: user.twoFactorSecret,   // hanya untuk debugging, boleh di-hide nanti
+      message: 'Scan QR Code ini menggunakan Google Authenticator'
+    });
+
+  } catch (err) {
+    console.error('[Enable 2FA]', err);
+    res.status(500).json({ message: 'Gagal mengaktifkan 2FA' });
+  }
+};
+
+// ====================== CEK STATUS 2FA ======================
+exports.get2FAStatus = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json({
+      twoFactorEnabled: user?.twoFactorEnabled || false,
+      hasSecret: !!user?.twoFactorSecret
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Gagal mengambil status' });
+  }
+};
