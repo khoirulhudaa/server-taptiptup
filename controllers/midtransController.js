@@ -111,7 +111,7 @@
       const overlaySetting = await OverlaySetting.findOne({ userId }) || {};
       const feeBearer = overlaySetting.feeBearer || 'streamer'; // default streamer
 
-      const percentFee = Math.round(nominal * 0.025); // 2.5%
+      const percentFee = Math.round(nominal * 0.030); // 3%
 
       let grossAmount;        // Yang dibayar donor ke Midtrans
       let streamerWillReceive; // Yang streamer dapat
@@ -121,7 +121,7 @@
         streamerWillReceive = nominal;
       } else {
         grossAmount = nominal;
-        streamerWillReceive = nominal - percentFee; // Streamer tanggung 2.5%
+        streamerWillReceive = nominal - percentFee; // Streamer tanggung 3%
       }
 
       const streamerUsername = streamer?.username || userId;
@@ -577,7 +577,7 @@ exports.getAvailableBalance = async (req, res) => {
     }
 
     // ====================== Lanjut Proses Withdrawal ======================
-    const WITHDRAW_FEE = 2500;
+    const WITHDRAW_FEE = 3000;
     const grossAmount = parseFloat(amount);
     const netAmount = grossAmount - WITHDRAW_FEE;
 
