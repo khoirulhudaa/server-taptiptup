@@ -50,6 +50,28 @@ router.post('/verify-2fa', authMiddleware, midtransCtrl.verify2FA);
 // ─── Withdrawal (Streamer) ────────────────────────────────────────────────────
 router.post('/withdraw', authMiddleware, rateLimitWithdrawal, midtransCtrl.requestWithdrawal);
 router.get('/withdraw/history', authMiddleware, rateLimitAuth, midtransCtrl.getWithdrawalHistory);
+// Route baru: GET /api/mediashare/shortcut/:token/:action
+// Pakai overlayToken sebagai auth (bukan JWT) karena Stream Deck tidak bisa kirim header
+router.get('/mediashare/shortcut/:token/:action', rateLimitAuth, async (req, res) => {
+  const { token, action } = req.params;
+  const volume = req.query.volume ? Number(req.query.volume) : undefined;
+
+  // Validasi action
+  const ALLOWED_ACTIONS = ['skip', 'volume', 'mute', 'unmute'];
+  if (!ALLOWED_ACTIONS.includes(action)) {
+    return res.status(400).json({ message: 'Invalid action' });
+  }
+
+  // Cari user via overlayToken (bukan JWT)
+  const user = await User.findOne({ overlayToken: token }).lean();
+  if (!user) return res.status(404).json({ message: 'Invalid token' });
+
+  const io = req.app.get('socketio');
+  io.to(`${token}-mediashare`).emit('mediashare-control', { action, volume });
+
+  // Bisa juga return HTML sederhana supaya Stream Deck "website" action tidak error
+  res.json({ success: true, action, timestamp: Date.now() });
+});
 router.post('/mediashare/control', authMiddleware, rateLimitAuth, async (req, res) => {
   const { action, volume } = req.body;
   // action: 'skip' | 'volume'
