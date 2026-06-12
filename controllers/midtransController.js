@@ -577,7 +577,7 @@ exports.getAvailableBalance = async (req, res) => {
     }
 
     // ====================== Lanjut Proses Withdrawal ======================
-    const WITHDRAW_FEE = 3000;
+    const WITHDRAW_FEE = 3500;
     const grossAmount = parseFloat(amount);
     const netAmount = grossAmount - WITHDRAW_FEE;
 
