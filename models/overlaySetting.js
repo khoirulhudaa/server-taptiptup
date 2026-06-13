@@ -93,6 +93,7 @@ const overlaySettingSchema = new mongoose.Schema(
       emoji: String
     }],
     publicSoundDefault: String, 
+    progressBarColor: { type: String, default: '#39ff14' },
 
     // ── Misc ────────────────────────────────────────────────────────────────
     soundUrl:  String,
