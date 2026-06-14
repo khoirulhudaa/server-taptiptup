@@ -72,7 +72,11 @@ exports.updateSettings = async (req, res) => {
       'soundTiers', 'leaderboardShowAmount', 'quickAmounts', 'leaderboardLimit', 
       'leaderboardPeriod', 'publicSounds', 'publicSoundDefault',
       'ttsEnabled', 'ttsRate', 'ttsPitch', 'ttsVolume', 'ttsVoiceName', 'ttsLanguageCode',  
-      'feeBearer'
+      'feeBearer',
+
+      // Konfigurasi Halaman Donasi
+      'showLeaderboardOnDonate',
+      'giphyOnDonate',
     ];
 
     const updateData = {};
