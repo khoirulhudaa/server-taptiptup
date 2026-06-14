@@ -77,6 +77,7 @@ exports.updateSettings = async (req, res) => {
       // Konfigurasi Halaman Donasi
       'showLeaderboardOnDonate',
       'giphyOnDonate',
+      'showRecentDonationsOnDonate'
     ];
 
     const updateData = {};
