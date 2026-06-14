@@ -95,7 +95,7 @@ router.post('/upload-audio', rateLimitUpload, upload.single('audio'), (req, res)
   }
 });
 
-router.get('/public/:username', async (req, res) => {
+router.get('/recent-donations/:username', async (req, res) => {
   try {
     const { username } = req.params;
     const limit = parseInt(req.query.limit) || 5;
@@ -103,19 +103,17 @@ router.get('/public/:username', async (req, res) => {
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const donors = await Donation.aggregate([
-      { $match: { userId: user._id, status: 'PAID' } },
-      { $group: {
-        _id: '$donorName',
-        totalAmount: { $sum: '$amount' },
-        count: { $sum: 1 }
-      }},
-      { $sort: { totalAmount: -1 } },
-      { $limit: limit },
-      { $project: { _id: 0, donorName: '$_id', totalAmount: 1, count: 1 } }
-    ]);
+    const Donation = require('../models/donation');
 
-    res.json({ donors });
+    const donations = await Donation.find(
+      { userId: user._id, status: 'PAID' },
+      'donorName amount message createdAt'
+    )
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    res.json({ donations });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
