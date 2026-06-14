@@ -121,6 +121,34 @@ router.get('/public/:username', async (req, res) => {
   }
 });
 
+router.get('/leaderboard/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const limit = parseInt(req.query.limit) || 5;
+
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const Donation = require('../models/donation');
+
+    const donors = await Donation.aggregate([
+      { $match: { userId: user._id, status: 'PAID' } },
+      { $group: {
+        _id: '$donorName',
+        totalAmount: { $sum: '$amount' },
+        count: { $sum: 1 }
+      }},
+      { $sort: { totalAmount: -1 } },
+      { $limit: limit },
+      { $project: { _id: 0, donorName: '$_id', totalAmount: 1, count: 1 } }
+    ]);
+
+    res.json({ donors });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Proxy - PUBLIK + rate limit
 router.get('/proxy-audio', rateLimitProxy, async (req, res) => {
   try {
