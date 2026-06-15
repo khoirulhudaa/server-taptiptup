@@ -36,7 +36,10 @@ router.get('/stats', authMiddleware, superAdminMiddleware, async (req, res) => {
       ]),
 
       // Pending withdrawals
-      Withdrawal.countDocuments({ status: 'PENDING' }),
+      Withdrawal.find({ status: 'PENDING' })
+      .sort({ createdAt: -1 })
+      .select('accountName paymentMethod amount createdAt')
+      .lean(),
 
       // Top 3 donatur dari semua user
       Donation.aggregate([
@@ -77,7 +80,14 @@ router.get('/stats', authMiddleware, superAdminMiddleware, async (req, res) => {
         amount: totalWithdrawalAgg[0]?.total || 0,
         count: totalWithdrawalAgg[0]?.count || 0,
       },
-      pendingWithdrawals,
+      pendingWithdrawals: pendingWithdrawals.map(w => ({
+        id: w._id,
+        accountName: w.accountName,
+        paymentMethod: w.paymentMethod,
+        amount: w.amount,
+        createdAt: w.createdAt,
+      })),
+      pendingWithdrawalsCount: pendingWithdrawals.length,
       topDonors: topDonors.map(d => ({ name: d._id, totalAmount: d.totalAmount, count: d.count })),
       monthlyRevenue,
       recentDonations,
