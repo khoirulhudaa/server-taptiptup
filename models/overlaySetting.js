@@ -118,12 +118,12 @@ const overlaySettingSchema = new mongoose.Schema(
     // ── DURASI ALERT ─────────────────────────────────────
     alertBaseDuration:          { type: Number, default: 10 },   // 10 detik dasar
     alertExtraPerAmount:        { type: Number, default: 10000 }, // setiap Rp10.000
-    alertExtraDuration:         { type: Number, default: 5 },    // tambah 5 detik
+    alertExtraDuration:         { type: Number, default: 1 },    // tambah 5 detik
 
     // ── DURASI MEDIA SHARE ───────────────────────────────
     mediaShareBaseDuration:     { type: Number, default: 15 },   // 15 detik dasar
     mediaShareExtraPerAmount:   { type: Number, default: 10000 }, // setiap Rp10.000
-    mediaShareExtraDuration:    { type: Number, default: 10 },   // tambah 10 detik
+    mediaShareExtraDuration:    { type: Number, default: 1 },   // tambah 1 detik
 
     // ── Text-to-Speech ──────────────────────────────────────────────────────
     ttsEnabled: { type: Boolean, default: false },
