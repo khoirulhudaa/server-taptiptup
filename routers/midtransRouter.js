@@ -206,7 +206,7 @@ router.post('/replay-donation/:donationId', authMiddleware, async (req, res) => 
       receivedAt:   new Date().toISOString(),
       soundUrl:     null,
       isReplay:     true,
-      isMediaShare: !!donation.mediaUrl && ['video', 'youtube', 'tiktok'].includes(resolvedMediaType),
+      isMediaShare: !!donation.mediaUrl && ['video', 'youtube', 'tiktok', 'image'].includes(resolvedMediaType),
     };
 
     // ✅ Emit Logic
