@@ -2,12 +2,12 @@ const { BannedWord } = require('../models');
 
 exports.get = async (req, res) => {
   const doc = await BannedWord.findOne({ userId: req.user.id }).lean();
-  res.json({ words: doc?.words || [], action: doc?.action || 'block', replacement: doc?.replacement || '' });
+  res.json({ words: doc?.words || [], action: doc?.action || 'censor', replacement: doc?.replacement || '' });
 };
 
 exports.save = async (req, res) => {
   const words = (req.body.words || []).map(w => w.toLowerCase().trim()).filter(Boolean);
-  const action = ['block', 'censor', 'replace'].includes(req.body.action) ? req.body.action : 'block';
+  const action = ['block', 'censor', 'replace'].includes(req.body.action) ? req.body.action : 'censor';
   const replacement = req.body.replacement || '';
   const doc = await BannedWord.findOneAndUpdate(
     { userId: req.user.id },
@@ -23,7 +23,7 @@ exports.filterMessage = async (userId, text) => {
   const doc = await BannedWord.findOne({ userId }).lean();
   if (!doc?.words?.length) return { blocked: false, filtered: text };
 
-  const action = doc.action || 'block';
+  const action = doc.action || 'censor';
   let filtered = text;
   let hasBanned = false;
 

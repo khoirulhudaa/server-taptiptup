@@ -5,7 +5,7 @@ const bannedWordSchema = new mongoose.Schema({
   action:  { 
     type: String, 
     enum: ['block', 'censor', 'replace'], 
-    default: 'block' 
+    default: 'censor' 
   },
   replacement: { type: String, default: '' }, // dipakai jika action === 'replace'
 }, { timestamps: true });
