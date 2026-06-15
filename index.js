@@ -62,24 +62,29 @@ console.log('   → /uploads/audio   → Audio Files');
 io.on('connection', (socket) => {
   socket.on('join-room', async (token) => {
     socket.join(token);
-    // console.log(`[Socket] Client join room: ${token}`);
+
+    // Ekstrak base token (buang suffix -mediashare, -voice)
+    const baseToken = token.replace(/-(mediashare|voice)$/, '');
+
+    // Hanya proses pending queue untuk base token
+    // Kalau yang join adalah room suffix, skip pending check
+    if (token !== baseToken) return;
 
     const pendingCount = await QueueItem.countDocuments({
-      overlayToken: token,
+      overlayToken: baseToken,
       status: { $in: ['PENDING', 'PROCESSING'] },
     });
 
     if (pendingCount > 0) {
       console.log(`[Socket] OBS join — ada ${pendingCount} donasi pending`);
       await QueueItem.updateMany(
-        { overlayToken: token, status: 'PROCESSING' },
+        { overlayToken: baseToken, status: 'PROCESSING' },
         { $set: { status: 'PENDING' } }
       );
 
-      // ✅ Tambah delay 1.5s agar socket benar-benar siap
       setTimeout(() => {
-        if (!donationQueue.processing.get(token)) {
-          donationQueue._processNext(token, io);
+        if (!donationQueue.processing.get(baseToken)) {
+          donationQueue._processNext(baseToken, io);
         }
       }, 1500);
     }

@@ -106,6 +106,7 @@
       res.status(500).json({ message: 'Failed to fetch public badges' });
     }
   });
+  
   // ─── Test Socket ──────────────────────────────────────────────────────────────
   router.post('/test-socket', authMiddleware, async (req, res) => {
     const io = req.app.get('socketio');
