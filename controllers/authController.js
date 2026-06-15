@@ -81,7 +81,7 @@ exports.register = async (req, res) => {
       email,
       password,
       securityPin,           // akan di-hash otomatis
-      overlayToken: crypto.randomBytes(16).toString('hex'),
+      overlayToken: crypto.randomBytes(24).toString('hex'),
       isVerified: false,
     });
 
