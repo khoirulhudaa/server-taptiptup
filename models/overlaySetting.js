@@ -69,9 +69,9 @@ const overlaySettingSchema = new mongoose.Schema(
 
     // ── Tampilan alert ──────────────────────────────────────────────────────
     theme:           { type: String, default: 'modern' },
-    primaryColor:    { type: String, default: '#6366f1' },
+    primaryColor:    { type: String, default: '#2e2f42' },
     textColor:       { type: String, default: '#ffffff' },
-    highlightColor:  { type: String, default: '#a5b4fc' },
+    highlightColor:  { type: String, default: '#ffffff' },
     animation:       { type: String, default: 'bounce' },
     borderColor:     { type: String, default: '#ffffff26' }, 
     maxWidth:        { type: Number, default: 280 },
