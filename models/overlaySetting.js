@@ -85,7 +85,7 @@ const overlaySettingSchema = new mongoose.Schema(
     durationTiers: { type: [durationTierSchema], default: [] },
     
     showLeaderboardOnDonate: { type: Boolean, default: false },
-    giphyOnDonate:           { type: Boolean, default: true  },
+    giphyOnDonate:           { type: Boolean, default: false  },
     showRecentDonationsOnDonate: { type: Boolean, default: false }, 
 
     // ── Media & Sound ───────────────────────────────────────────────────────
