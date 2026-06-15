@@ -464,7 +464,7 @@
     const pendingDonations = await Donation.find({
       status: 'PAID',
       isAvailable: false,
-      availableAt: { $lte: new Date() }  
+      availableAt: { $lte: new Date() }  // Jika availableAt <= sekarang
     }).populate('userId');
 
     console.log(`[CheckAvailableBalance] Menemukan ${pendingDonations.length} donasi yang akan tersedia`);
