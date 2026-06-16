@@ -35,6 +35,13 @@ const donationSchema = new mongoose.Schema(
       enum: ['PENDING', 'PAID', 'EXPIRED'],
       default: 'PENDING',
     },
+    
+    donationItem: {
+      name:  { type: String },
+      emoji: { type: String },
+      price: { type: Number },
+      description: { type: String },
+    },
 
     // ── Fee tracking ──────────────────────────────────────────
     grossAmount:     { type: Number, default: null },

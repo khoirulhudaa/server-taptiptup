@@ -95,7 +95,7 @@
     const {
       amount, donorName, message, userId, email,
       mediaUrl, mediaType, donorUserId, soundUrl,
-      pollVote, voiceUrl, isMediaShare
+      pollVote, voiceUrl, isMediaShare, donationItem
     } = req.body;
 
     if (!amount || !userId) {
@@ -203,6 +203,7 @@
         blockReason,        // ← tambah
         voiceUrl: voiceUrl || null,  // ← TAMBAH INI
         paymentUrl:  snapResponse.redirect_url,
+        donationItem: donationItem || null,   
         status:      'PENDING',
         streamerReceive: streamerWillReceive,  // ← TAMBAH INI
         feeBearer,                             // ← TAMBAH INI
@@ -423,6 +424,7 @@
             soundUrl:     dataDonasi.soundUrl   || soundUrl,
             videoBlocked: dataDonasi.videoBlocked || false,
             blockReason:  dataDonasi.blockReason  || null,  // ← TAMBAH INI
+            donationItem: dataDonasi.donationItem || null,   
             receivedAt:   new Date().toISOString(),
           };
 
