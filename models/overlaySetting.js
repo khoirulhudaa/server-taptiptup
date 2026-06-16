@@ -76,6 +76,15 @@ const overlaySettingSchema = new mongoose.Schema(
     borderColor:     { type: String, default: '#ffffff26' }, 
     maxWidth:        { type: Number, default: 280 },
     overlayPosition: { type: String, default: 'bottom-right' },
+    
+    donationItemsEnabled: { type: Boolean, default: false },
+    donationItems: [{
+      id:          { type: String },
+      emoji:       { type: String, default: '🎁' },
+      name:        { type: String, default: '' },
+      price:       { type: Number, default: 10000 },
+      description: { type: String, default: '' },
+    }],
 
     // ── Durasi ──────────────────────────────────────────────────────────────
     baseDuration:   { type: Number, default: 5 },
