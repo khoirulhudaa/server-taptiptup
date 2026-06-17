@@ -21,6 +21,8 @@ router.post('/forgot-password', rateLimitAuthBasic, authCtrl.forgotPassword);
 router.post('/reset-password', rateLimitAuthBasic, authCtrl.resetPassword);
 router.post('/verify-security-pin', rateLimitAuthBasic, authCtrl.verifySecurityPin); // baru
 router.put('/change-pin', authMiddleware, authCtrl.changePin);
+router.put('/regenerate-overlay-token', authMiddleware, rateLimitAuth, authCtrl.regenerateOverlayToken);
+router.delete('/delete-account', authMiddleware, rateLimitAuthBasic, authCtrl.deleteAccount);
 
 // Yang sudah login
 router.put('/profile', authMiddleware, rateLimitAuth, authCtrl.updateProfile);

@@ -421,3 +421,77 @@ exports.changePin = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+exports.regenerateOverlayToken = async (req, res) => {
+  try {
+    const userId = req.user.id;
+ 
+    // Generate token baru yang unik
+    const newToken = crypto.randomBytes(20).toString('hex');
+ 
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { overlayToken: newToken },
+      { new: true }
+    ).select('overlayToken');
+ 
+    if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
+ 
+    // Emit socket supaya overlay lama tahu sesi sudah diganti (opsional)
+    const io = req.app.get('io');
+    if (io) {
+      // Emit ke room token lama (sebelum update) — tidak bisa karena kita tidak tahu
+      // token lama di sini; overlay akan auto-reconnect saat refresh OBS
+    }
+ 
+    res.json({
+      message: 'Overlay token berhasil diganti',
+      overlayToken: user.overlayToken,
+    });
+  } catch (err) {
+    console.error('[regenerateOverlayToken]', err);
+    res.status(500).json({ message: 'Gagal mengganti token', error: err.message });
+  }
+};
+ 
+// ── deleteAccount ─────────────────────────────────────────────────────────────
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { pin } = req.body;
+ 
+    if (!pin || pin.length !== 4) {
+      return res.status(400).json({ message: 'PIN harus 4 digit' });
+    }
+ 
+    const user = await User.findById(userId).select('+pin');
+    if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
+ 
+    // Verifikasi PIN — sesuaikan dengan cara kamu menyimpan PIN (bcrypt / plain)
+    const isValid = await bcrypt.compare(pin, user.pin);
+    if (!isValid) {
+      return res.status(403).json({ message: 'PIN salah. Akun tidak dihapus.' });
+    }
+ 
+    // Cek saldo tersisa — tolak jika masih ada
+    if ((user.walletBalance || 0) > 0) {
+      return res.status(400).json({
+        message: `Saldo kamu masih Rp${user.walletBalance.toLocaleString('id-ID')}. Cairkan dulu sebelum hapus akun.`
+      });
+    }
+ 
+    // Hapus data terkait (sesuaikan dengan model yang kamu punya)
+    const { OverlaySetting, Donation } = require('../models');
+    await Promise.all([
+      OverlaySetting.deleteMany({ userId }),
+      Donation.deleteMany({ userId }),
+      // tambahkan model lain jika perlu: Poll, Milestone, Subathon, dsb.
+      User.findByIdAndDelete(userId),
+    ]);
+ 
+    res.json({ message: 'Akun berhasil dihapus' });
+  } catch (err) {
+    console.error('[deleteAccount]', err);
+    res.status(500).json({ message: 'Gagal menghapus akun', error: err.message });
+  }
+};
