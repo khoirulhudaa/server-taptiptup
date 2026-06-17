@@ -122,9 +122,13 @@
 
     res.json({ message: 'Socket test sent!', room: user.overlayToken });
   });
-
+  
   router.post('/test-mediashare/send', authMiddleware, async (req, res) => {
-    const { targetUsername, donorName, amount, message, mediaUrl, mediaType, startTime } = req.body;
+    const { 
+      targetUsername, donorName, amount, message, 
+      mediaUrl, mediaType, startTime,
+      donationItem  // ← TAMBAH INI
+    } = req.body;
 
     const streamer = await User.findOne({ username: targetUsername }).lean();
     if (!streamer?.overlayToken) {
@@ -133,18 +137,18 @@
 
     const io = req.app.get('socketio');
 
-    // ← Jangan convert, kirim raw — biarkan MediaShareOverlay yang handle
     const payload = {
       donorName:    donorName || 'TestDonor',
       amount:       Number(amount) || 25000,
       message:      message || null,
-      mediaUrl:     mediaUrl || null,       // ← raw URL
+      mediaUrl:     mediaUrl || null,
       mediaType:    mediaType || 'image',
-      startTime:    Number(startTime) || 0, // ← tambah startTime
-      isMediaShare: true,                   // ← flag penting
+      startTime:    Number(startTime) || 0,
+      isMediaShare: true,
       receivedAt:   new Date().toISOString(),
       soundUrl:     null,
       isTestMediaShare: true,
+      donationItem: donationItem || null,  // ← TAMBAH INI
     };
 
     io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', payload);
