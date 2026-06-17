@@ -78,6 +78,11 @@ const overlaySettingSchema = new mongoose.Schema(
     overlayPosition: { type: String, default: 'bottom-right' },
     
     donationItemsEnabled: { type: Boolean, default: false },
+    donationItemsMode: { 
+      type: String, 
+      enum: ['both', 'items_only', 'amount_only'], 
+      default: 'both' 
+    },
     donationItems: [{
       id:          { type: String },
       emoji:       { type: String, default: '🎁' },

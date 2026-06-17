@@ -25,7 +25,15 @@ exports.getSettings = async (req, res) => {
     const availableBalance = parseFloat(user.availableBalance || 0);
     // pendingBalance = total donasi yang belum genap 1 hari
     const pendingBalance   = Math.max(0, walletBalance - availableBalance);
- 
+
+    const normalizedSetting = overlaySetting ? {
+      ...overlaySetting,
+      donationItemsMode: overlaySetting.donationItemsMode || 
+        (overlaySetting.donationItemsEnabled ? 'both' : 'amount_only'),
+      donationItemsEnabled: overlaySetting.donationItemsEnabled ?? false,
+      donationItems: overlaySetting.donationItems || [],
+    } : {};
+
     res.json({
       // Expose di level atas agar mudah diakses frontend
       walletBalance,
@@ -42,8 +50,8 @@ exports.getSettings = async (req, res) => {
         roleUpgradeNotified: user.roleUpgradeNotified,
       },
  
-      settings: overlaySetting || {},
-      overlaySetting: overlaySetting || {},
+      settings: normalizedSetting,
+      overlaySetting: normalizedSetting,
     });
   } catch (err) {
     console.error('[getSettings] Error:', err);
@@ -60,7 +68,7 @@ exports.updateSettings = async (req, res) => {
       'minDonate', 'maxDonate', 'overlayEnabled', 'customIcon', 'showTimestamp',
       'theme', 'primaryColor', 'textColor', 'borderColor', 'animation', 'maxWidth', 
       'overlayPosition', 'activeSlot', 'progressBarColor', 'donationItems',        // ← tambah ini
-      'donationItemsEnabled',
+      'donationItemsEnabled', 'donationItemsMode',
 
       // Field Durasi
       'baseDuration', 'extraPerAmount', 'extraDuration', 'durationTiers',
@@ -161,6 +169,14 @@ exports.getPublicProfile = async (req, res) => {
       slot 
     }).lean();
 
+    const normalizedSetting = overlaySetting ? {
+      ...overlaySetting,
+      donationItemsMode: overlaySetting.donationItemsMode || 
+        (overlaySetting.donationItemsEnabled ? 'both' : 'amount_only'),
+      donationItemsEnabled: overlaySetting.donationItemsEnabled ?? false,
+      donationItems: overlaySetting.donationItems || [],
+    } : null;
+
     res.json({
       ...user,
       // Pastikan social media ikut terkirim
@@ -177,6 +193,8 @@ exports.getPublicProfile = async (req, res) => {
       feeBearer: overlaySetting?.feeBearer || 'streamer',
       OverlaySetting: overlaySetting, // untuk kompatibilitas lama
       publicSounds: overlaySetting?.publicSounds || [],
+      donationItemsMode: normalizedSetting?.donationItemsMode || 'amount_only',  // top-level juga
+      donationItemsEnabled: normalizedSetting?.donationItemsEnabled ?? false,
       alertBaseDuration: overlaySetting?.alertBaseDuration,
       alertExtraPerAmount: overlaySetting?.alertExtraPerAmount,
       alertExtraDuration: overlaySetting?.alertExtraDuration,
