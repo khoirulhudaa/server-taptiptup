@@ -25,6 +25,7 @@ exports.sendInstantTestAlert = async (req, res) => {
     mediaUrl = null, 
     mediaType = null,
     voiceUrl = null,
+    donationItem = null
   } = req.body;
 
   if (!targetUsername) {
@@ -65,6 +66,7 @@ exports.sendInstantTestAlert = async (req, res) => {
       isTestAlert: true,
       isGhostAlert: true,
       voiceUrl,
+      donationItem
     };
 
     // Kirim ke antrian agar konsisten dengan donasi normal
