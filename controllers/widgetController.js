@@ -53,43 +53,53 @@ exports.milestones = async (req, res) => {
     const user = await getUserByToken(token) || await User.findOne({ username: token }).lean();
     if (!user) return res.status(404).send('Not found');
 
-    // 1. Ambil Milestones (Gunakan user._id asli)
     const milestones = await Milestone.find({ userId: user._id }).sort('order').lean();
 
-    // 2. Agregasi Total Donasi (PAID)
-    const agg = await Donation.aggregate([
-      { 
-        $match: { 
-          userId: new mongoose.Types.ObjectId(user._id), // Pastikan ini ObjectId!
-          status: 'PAID' 
-        } 
-      },
-      { $group: { _id: null, total: { $sum: '$amount' } } },
-    ]);
+    // ── Hitung total per period ──────────────────────────
+    const buildMatch = (period) => {
+      const base = { userId: new mongoose.Types.ObjectId(user._id), status: 'PAID' };
+      const now = new Date();
+      if (period === 'today') {
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        return { ...base, createdAt: { $gte: start } };
+      }
+      if (period === 'thismonth') {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        return { ...base, createdAt: { $gte: start } };
+      }
+      return base;
+    };
 
-    const totalPaid = agg[0]?.total || 0;
+    const periods = [...new Set(milestones.map(m => m.period || 'alltime'))];
+    const totals = {};
+    await Promise.all(periods.map(async (period) => {
+      const result = await Donation.aggregate([
+        { $match: buildMatch(period) },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]);
+      totals[period] = result[0]?.total || 0;
+    }));
+    // ────────────────────────────────────────────────────
 
-    // 3. Mapping data untuk cegah NaN
     const enriched = milestones.map(m => {
+      const period = m.period || 'alltime';
+      const totalForPeriod = totals[period];
       const target = Number(m.targetAmount) || 0;
-      const current = Math.min(totalPaid, target);
-      const progress = target > 0 ? Math.min(100, Math.round((totalPaid / target) * 100)) : 0;
-
       return {
         ...m,
+        period,
         targetAmount: target,
-        currentAmount: current,
-        progress: progress,
-        reached: totalPaid >= target,
+        currentAmount: Math.min(totalForPeriod, target),
+        progress: target > 0 ? Math.min(100, Math.round((totalForPeriod / target) * 100)) : 0,
+        reached: totalForPeriod >= target,
       };
     });
 
-    if (req.headers.accept && req.headers.accept.includes('application/json')) {
-      return res.json(enriched); // Mengirim array milestone yang sudah di-mapping
+    if (req.headers.accept?.includes('application/json')) {
+      return res.json({ milestones: enriched, totalPaid: totals['alltime'] || 0 });
     }
 
-    // Jika dibuka langsung di OBS sebagai Browser Source (HTML)
-    res.send(renderMilestonesHTML(enriched, user.username, totalPaid));
+    res.send(renderMilestonesHTML(enriched, user.username, totals['alltime'] || 0));
   } catch (err) {
     console.error(err);
     res.status(500).send("Error");
