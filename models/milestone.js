@@ -7,7 +7,11 @@ const milestoneSchema = new mongoose.Schema({
   reached:     { type: Boolean, default: false },
   reachedAt:   { type: Date, default: null },
   order:       { type: Number, default: 0 },
-  period:       { type: String, enum: ['alltime', 'today', 'thismonth'], default: 'alltime' }, 
-  periodSince:   { type: Date, default: null },
+  period: { 
+    type: String, 
+    enum: ['alltime', 'today', 'thismonth', 'since'], // ← tambah 'since'
+    default: 'alltime' 
+  },
+  periodSince: { type: Date, default: null }
 }, { timestamps: true });
 module.exports = mongoose.model('Milestone', milestoneSchema);
