@@ -45,6 +45,38 @@ exports.qrcode = async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+exports.getMilestoneTotal = async (req, res) => {
+  try {
+    const { period, periodSince } = req.query;
+    const userId = req.user.id;
+    const now = new Date();
+
+    let match = { userId: new mongoose.Types.ObjectId(userId), status: 'PAID' };
+
+    if (period === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      match.createdAt = { $gte: start };
+    } else if (period === 'thismonth') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      match.createdAt = { $gte: start };
+    } else if (period === 'since' && periodSince) {
+      const start = new Date(periodSince);
+      start.setHours(0, 0, 0, 0);
+      match.createdAt = { $gte: start };
+    }
+
+    const result = await Donation.aggregate([
+      { $match: match },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+
+    res.json({ total: result[0]?.total || 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.milestones = async (req, res) => {
   try {
     const { token } = req.params;
