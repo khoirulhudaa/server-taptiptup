@@ -75,6 +75,16 @@ exports.upsertMilestones = async (req, res) => {
     await Milestone.deleteMany({ userId: req.user.id });
     const docs = milestones.map((m, i) => ({ ...m, userId: req.user.id, order: i }));
     const created = await Milestone.insertMany(docs);
+
+   // ← emit socket agar widget langsung update
+    const { User } = require('../models');
+    const user = await User.findById(req.user.id).lean();
+    if (user?.overlayToken) {
+      const io = req.app.get('socketio'); // ← pakai ini
+      io.to(user.overlayToken).emit('milestones-updated');
+    }
+
+
     res.json(created);
   } catch (err) {
     res.status(400).json({ error: err.message });
