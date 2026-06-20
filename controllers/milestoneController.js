@@ -1,3 +1,4 @@
+const { default: mongoose } = require('mongoose');
 const { Milestone, Donation } = require('../models');
 
 exports.getMilestones = async (req, res) => {
