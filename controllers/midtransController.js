@@ -11,6 +11,7 @@
   const speakeasy = require('speakeasy');
   const QRCode = require('qrcode');
   require('dotenv').config();
+  const rateLimit = require('express-rate-limit');
 
   const isProduction = process.env.NODE_ENV === 'production';
 
@@ -540,134 +541,237 @@ exports.getAvailableBalance = async (req, res) => {
   }
 };
 
- exports.requestWithdrawal = async (req, res) => {
-  const { 
-    amount, 
-    paymentMethod, 
-    channelCode, 
-    accountNumber, 
-    accountName, 
-    totpCode   // ← Ganti dari securityPin
+ // ─── Rate Limiter (pasang di route, bukan controller) ─────────────────────────
+exports.withdrawRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 menit
+  max: 3,                    // max 3 request per 15 menit per IP
+  keyGenerator: (req) => req.user?.id || req.ip, // per user, bukan per IP
+  message: { message: 'Terlalu banyak permintaan penarikan. Coba lagi dalam 15 menit.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ─── Audit Log Helper ─────────────────────────────────────────────────────────
+const createAuditLog = async (userId, action, details, session = null) => {
+  const log = {
+    userId,
+    action,
+    details,
+    ip: details.ip || 'unknown',
+    timestamp: new Date(),
+  };
+  // Simpan ke koleksi AuditLog
+  const options = session ? { session } : {};
+  await AuditLog.create([log], options);
+};
+
+exports.requestWithdrawal = async (req, res) => {
+  const {
+    amount,
+    paymentMethod,
+    channelCode,
+    accountNumber,
+    accountName,
+    totpCode,
+    idempotencyKey, // ← client kirim UUID unik per request
   } = req.body;
 
   const userId = req.user.id;
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-  // Validasi TOTP
-  if (!totpCode || totpCode.length !== 6) {
-    return res.status(400).json({ message: "Kode Google Authenticator (6 digit) wajib diisi" });
+  // ─── 1. Validasi idempotency key ──────────────────────────────────────────
+  if (!idempotencyKey || typeof idempotencyKey !== 'string' || idempotencyKey.length < 16) {
+    return res.status(400).json({ message: 'Idempotency key tidak valid' });
   }
 
-  try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
+  // Cek apakah key ini sudah pernah dipakai
+  const existingRequest = await Withdrawal.findOne({ idempotencyKey });
+  if (existingRequest) {
+    return res.status(409).json({
+      message: 'Request ini sudah pernah diproses sebelumnya.',
+      status: existingRequest.status,
+      referenceNo: existingRequest.midtransReference,
+    });
+  }
 
-    // Cek apakah 2FA aktif
-    if (!user.twoFactorEnabled || !user.twoFactorSecret) {
-      return res.status(400).json({ message: "Google Authenticator belum diaktifkan. Silakan aktifkan terlebih dahulu." });
+  // ─── 2. Validasi TOTP ─────────────────────────────────────────────────────
+  if (!totpCode || !/^\d{6}$/.test(totpCode)) {
+    return res.status(400).json({ message: 'Kode Google Authenticator harus 6 digit angka' });
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // ─── 3. Lock user row (findOneAndUpdate atomic) ───────────────────────────
+    // Dengan session transaksi, MongoDB akan lock document ini
+    const user = await User.findById(userId).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: 'User tidak ditemukan' });
     }
 
-    // Verifikasi TOTP
-    const isValid = speakeasy.totp.verify({
+    // ─── 4. Cek 2FA ───────────────────────────────────────────────────────────
+    if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: 'Google Authenticator belum diaktifkan.' });
+    }
+
+    // ─── 5. Verifikasi TOTP dengan window ketat ───────────────────────────────
+    const isValidTotp = speakeasy.totp.verify({
       secret: user.twoFactorSecret,
       encoding: 'base32',
       token: totpCode,
-      window: 1,
+      window: 0, // ← window: 0 = hanya kode saat ini, tidak ada toleransi waktu
     });
 
-    if (!isValid) {
-      return res.status(401).json({ message: "Kode Google Authenticator salah atau sudah kadaluarsa" });
+    if (!isValidTotp) {
+      await session.abortTransaction();
+      session.endSession();
+
+      // Audit log percobaan TOTP gagal
+      await createAuditLog(userId, 'WITHDRAW_TOTP_FAILED', {
+        ip: clientIp,
+        amount,
+        channelCode,
+        accountNumber,
+      });
+
+      return res.status(401).json({ message: 'Kode Google Authenticator salah atau sudah kadaluarsa' });
     }
 
-    // ====================== Lanjut Proses Withdrawal ======================
-    const WITHDRAW_FEE = 4000;
+    // ─── 6. Cek withdraw harian (max Rp 10.000.000 / hari) ───────────────────
+    const MAX_DAILY = 10000000;
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const todayWithdrawals = await Withdrawal.aggregate([
+      {
+        $match: {
+          userId: user._id,
+          status: { $in: ['PENDING', 'COMPLETED'] },
+          createdAt: { $gte: startOfDay },
+        },
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]).session(session);
+
+    const todayTotal = todayWithdrawals[0]?.total || 0;
     const grossAmount = parseFloat(amount);
-    const netAmount = grossAmount - WITHDRAW_FEE;
+
+    if (todayTotal + grossAmount > MAX_DAILY) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        message: `Batas penarikan harian Rp ${MAX_DAILY.toLocaleString('id-ID')} terlampaui. Sudah ditarik hari ini: Rp ${todayTotal.toLocaleString('id-ID')}`,
+      });
+    }
+
+    // ─── 7. Validasi nominal ──────────────────────────────────────────────────
+    const WITHDRAW_FEE = 4000;
+    const MIN_WITHDRAW = 20000;
+    const MAX_WITHDRAW = 10000000;
 
     if (!grossAmount || isNaN(grossAmount) || grossAmount <= 0)
       return res.status(400).json({ message: 'Nominal tidak valid' });
+    if (grossAmount < MIN_WITHDRAW)
+      return res.status(400).json({ message: `Minimal penarikan Rp ${MIN_WITHDRAW.toLocaleString('id-ID')}` });
+    if (grossAmount > MAX_WITHDRAW)
+      return res.status(400).json({ message: `Maksimal penarikan Rp ${MAX_WITHDRAW.toLocaleString('id-ID')}` });
 
-    if (grossAmount < 10000)
-      return res.status(400).json({ message: 'Minimal penarikan adalah Rp 15.000' });
-
-    if (grossAmount > 10000000)
-      return res.status(400).json({ message: 'Maksimal penarikan adalah Rp 10.000.000' });
-
+    const netAmount = grossAmount - WITHDRAW_FEE;
     if (netAmount <= 0)
       return res.status(400).json({ message: 'Nominal terlalu kecil setelah fee' });
 
     if (!channelCode || !accountNumber || !accountName)
       return res.status(400).json({ message: 'Data rekening tidak lengkap' });
 
-    const referenceNo = `wd-${userId}-${Date.now()}`;
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const availableBalance = parseFloat(user?.availableBalance || 0);
-
-      if (grossAmount > availableBalance) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          message: `Saldo tidak cukup. Saldo tersedia: Rp ${availableBalance.toLocaleString('id-ID')}`,
-        });
-      }
-
-      // Potong saldo
-      await User.findByIdAndUpdate(
-        userId,
-        {
-          $inc: {
-            availableBalance: -grossAmount,
-            walletBalance: -grossAmount,
-          },
+    // ─── 8. Cek & potong saldo secara atomic (findOneAndUpdate dengan kondisi) ──
+    // Ini mencegah race condition: saldo hanya dipotong jika masih cukup
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: userId,
+        availableBalance: { $gte: grossAmount }, // ← kondisi atomik
+      },
+      {
+        $inc: {
+          availableBalance: -grossAmount,
+          walletBalance: -grossAmount,
         },
-        { session }
-      );
+      },
+      { session, new: true }
+    );
 
-      // Buat record withdrawal
-      await Withdrawal.create([{
-        userId,
-        amount: grossAmount,
-        paymentMethod: paymentMethod || 'BANK',
-        channelCode,
-        accountNumber,
-        accountName,
-        status: 'PENDING',
-        midtransReference: referenceNo,
-        note: null,
-      }], { session });
-
-      await session.commitTransaction();
+    // Jika null = saldo tidak cukup atau sudah berubah (race condition tercegah)
+    if (!updatedUser) {
+      await session.abortTransaction();
       session.endSession();
-
-      // Kirim notifikasi Telegram
-      await sendWithdrawalNotification({
-        username: user.username,
-        amount: netAmount,
-        paymentMethod: paymentMethod || 'BANK',
-        channelCode,
-        accountNumber,
-        accountName,
+      return res.status(400).json({
+        message: `Saldo tidak mencukupi. Mungkin ada transaksi lain yang sedang diproses.`,
       });
-
-      return res.json({
-        message: '✅ Penarikan berhasil diajukan!',
-        referenceNo,
-        status: 'PENDING',
-        detail: `Rp ${grossAmount.toLocaleString('id-ID')} - fee Rp ${WITHDRAW_FEE.toLocaleString('id-ID')} = Rp ${netAmount.toLocaleString('id-ID')}`,
-      });
-
-    } catch (err) {
-      if (session.inTransaction()) await session.abortTransaction();
-      session.endSession();
-      console.error('[requestWithdrawal] Error:', err);
-      return res.status(500).json({ message: 'Terjadi kesalahan sistem', error: err.message });
     }
 
+    // ─── 9. Buat record withdrawal ────────────────────────────────────────────
+    const referenceNo = `wd-${userId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+    const [withdrawal] = await Withdrawal.create([{
+      userId,
+      amount: grossAmount,
+      paymentMethod: paymentMethod || 'BANK',
+      channelCode,
+      accountNumber,
+      accountName,
+      status: 'PENDING',
+      midtransReference: referenceNo,
+      idempotencyKey,   // ← simpan untuk cegah duplikat
+      note: null,
+    }], { session });
+
+    // ─── 10. Audit log sukses ─────────────────────────────────────────────────
+    await createAuditLog(userId, 'WITHDRAW_REQUESTED', {
+      ip: clientIp,
+      amount: grossAmount,
+      netAmount,
+      channelCode,
+      accountNumber: accountNumber.slice(-4).padStart(accountNumber.length, '*'), // mask
+      referenceNo,
+      withdrawalId: withdrawal._id,
+    }, session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // Notifikasi Telegram
+    await sendWithdrawalNotification({
+      username: user.username,
+      amount: netAmount,
+      paymentMethod: paymentMethod || 'BANK',
+      channelCode,
+      accountNumber,
+      accountName,
+    });
+
+    return res.json({
+      message: 'Penarikan berhasil diajukan!',
+      referenceNo,
+      status: 'PENDING',
+      netAmount,
+    });
+
   } catch (err) {
-    console.error('[2FA Withdrawal Error]:', err);
-    return res.status(500).json({ message: 'Terjadi kesalahan saat verifikasi 2FA' });
+    if (session.inTransaction()) await session.abortTransaction();
+    session.endSession();
+
+    // Audit log error
+    await createAuditLog(userId, 'WITHDRAW_ERROR', {
+      ip: clientIp,
+      error: err.message,
+    }).catch(() => {}); // jangan sampai log error menghentikan response
+
+    console.error('[requestWithdrawal] Error:', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan sistem' });
   }
 };
 

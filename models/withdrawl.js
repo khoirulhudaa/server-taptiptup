@@ -16,6 +16,11 @@ const withdrawalSchema = new mongoose.Schema(
     channelCode: String,
     accountNumber: String,
     accountName: String,
+    idempotencyKey: {
+      type: String,
+      unique: true,   // ← index unique mencegah duplikat di level DB
+      sparse: true,   // ← sparse agar dokumen lama (tanpa field ini) tidak error
+    },
     status: {
       type: String,
       enum: ['PENDING', 'COMPLETED', 'FAILED'],
@@ -32,6 +37,7 @@ const withdrawalSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+withdrawalSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
 withdrawalSchema.index({ userId: 1, createdAt: -1 });
 withdrawalSchema.index({ status: 1 });
 

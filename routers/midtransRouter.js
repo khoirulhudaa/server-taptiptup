@@ -59,7 +59,7 @@
   router.post('/verify-2fa', authMiddleware, midtransCtrl.verify2FA);
 
   // ─── Withdrawal (Streamer) ────────────────────────────────────────────────────
-  router.post('/withdraw', authMiddleware, rateLimitWithdrawal, midtransCtrl.requestWithdrawal);
+  router.post('/withdraw', authMiddleware, midtransCtrl.withdrawRateLimiter, midtransCtrl.requestWithdrawal, midtransCtrl.requestWithdrawal);
   router.get('/withdraw/history', authMiddleware, rateLimitAuth, midtransCtrl.getWithdrawalHistory);
   // Route baru: GET /api/mediashare/shortcut/:token/:action
   // Pakai overlayToken sebagai auth (bukan JWT) karena Stream Deck tidak bisa kirim header
