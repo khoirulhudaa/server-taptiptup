@@ -42,6 +42,17 @@
 
   // ─── Donasi ───────────────────────────────────────────────────────────────────
   router.post('/create-invoice', midtransCtrl.createDonation);
+  router.get('/status/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const donation = await Donation.findOne({ externalId: orderId }).lean();
+    if (!donation) return res.status(404).json({ message: 'Donasi tidak ditemukan' });
+
+    res.json({ transaction_status: donation.status === 'PAID' ? 'settlement' : donation.status.toLowerCase() });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
   router.post('/webhooks',       midtransCtrl.handleWebhook);
   router.post('/enable-2fa', authMiddleware, midtransCtrl.enable2FA);
   router.get('/2fa-status', authMiddleware, midtransCtrl.get2FAStatus);

@@ -1,5 +1,5 @@
 const { default: mongoose } = require('mongoose');
-const { Milestone, Donation } = require('../models');
+const { Milestone, Donation, User } = require('../models');
 
 exports.getMilestones = async (req, res) => {
   try {
@@ -77,7 +77,6 @@ exports.upsertMilestones = async (req, res) => {
     const created = await Milestone.insertMany(docs);
 
    // ← emit socket agar widget langsung update
-    const { User } = require('../models');
     const user = await User.findById(req.user.id).lean();
     if (user?.overlayToken) {
       const io = req.app.get('socketio'); // ← pakai ini

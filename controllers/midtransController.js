@@ -215,7 +215,7 @@
         pollVote:    validatedPollVote,
       });
   
-      res.json({ url: snapResponse.redirect_url, token: snapResponse.token });
+      res.json({ url: snapResponse.redirect_url, token: snapResponse.token, orderId });
     } catch (err) {
       console.error('[Midtrans Error]:', err);
       res.status(500).json({ message: 'Midtrans Error', details: err?.ApiResponse || err.message });
