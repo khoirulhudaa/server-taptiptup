@@ -138,7 +138,6 @@ exports.updateSettings = async (req, res) => {
       console.warn('[Socket] io instance tidak tersedia');
     }
 
-    const io = req.app.get('socketio');
     if (io && user?.overlayToken) {
       io.to(user.overlayToken).emit('leaderboard-updated');
     }
