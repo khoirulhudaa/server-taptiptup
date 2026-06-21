@@ -130,16 +130,13 @@ exports.updateSettings = async (req, res) => {
       
       if (user?.overlayToken) {
         io.to(user.overlayToken).emit('settings-updated');
+        io.to(user.overlayToken).emit('leaderboard-updated');
         console.log(`[Socket] 'settings-updated' dikirim ke room: ${user.overlayToken} | activeSlot → ${updateData.activeSlot || 'A'}`);
       } else {
         console.warn('[Socket] overlayToken tidak ditemukan untuk user ini');
       }
     } else {
       console.warn('[Socket] io instance tidak tersedia');
-    }
-
-    if (io && user?.overlayToken) {
-      io.to(user.overlayToken).emit('leaderboard-updated');
     }
 
     res.json({ 
