@@ -199,6 +199,8 @@ exports.getPublicProfile = async (req, res) => {
       donationItemsEnabled: normalizedSetting?.donationItemsEnabled ?? false,
       alertBaseDuration: overlaySetting?.alertBaseDuration,
       alertExtraPerAmount: overlaySetting?.alertExtraPerAmount,
+      songRequestEnabled: overlaySetting?.songRequestEnabled,
+      songRequestMinAmount: overlaySetting?.songRequestMinAmount,
       alertExtraDuration: overlaySetting?.alertExtraDuration,
       mediaShareBaseDuration: overlaySetting?.mediaShareBaseDuration,
       mediaShareExtraPerAmount: overlaySetting?.mediaShareExtraPerAmount,
