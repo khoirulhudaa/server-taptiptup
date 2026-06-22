@@ -96,7 +96,8 @@
     const {
       amount, donorName, message, userId, email,
       mediaUrl, mediaType, donorUserId, soundUrl,
-      pollVote, voiceUrl, isMediaShare, donationItem
+      pollVote, voiceUrl, isMediaShare, donationItem,
+      songData
     } = req.body;
 
     if (!amount || !userId) {
@@ -189,6 +190,17 @@
           }
         }
       }
+
+      // Validasi Song Request
+      if (songData) {
+        if (!overlaySetting.songRequestEnabled) {
+          return res.status(400).json({ message: 'Streamer belum mengaktifkan fitur Song Request' });
+        }
+        const minSong = overlaySetting.songRequestMinAmount || 25000;
+        if (nominal < minSong) {
+          return res.status(400).json({ message: `Song Request butuh minimal Rp ${minSong.toLocaleString('id-ID')}` });
+        }
+      }
   
       await Donation.create({
         externalId:  orderId,
@@ -200,6 +212,7 @@
         isMediaShare: isMediaShare || false,  // ← tambah ini
         amount: nominal,                    // nominal input donor
         grossAmount,
+        songData: songData || null,
         videoBlocked,       // ← tambah
         blockReason,        // ← tambah
         voiceUrl: voiceUrl || null,  // ← TAMBAH INI
@@ -418,9 +431,10 @@
             amount:       nominalInput,
             message:      dataDonasi.message,
             voiceUrl:     dataDonasi.voiceUrl   || null,
-            mediaUrl:     dataDonasi.mediaUrl   || null,   
-            mediaType:    dataDonasi.mediaType  || null,
-            isMediaShare: dataDonasi.isMediaShare || !!dataDonasi.mediaUrl,
+            mediaUrl:     dataDonasi.songData ? dataDonasi.songData.permalinkUrl : (dataDonasi.mediaUrl || null),
+            mediaType:    dataDonasi.songData ? 'soundcloud' : (dataDonasi.mediaType || null),
+            songData:     dataDonasi.songData || null, // ← TAMBAH INI
+            isMediaShare: !!dataDonasi.songData || dataDonasi.isMediaShare || !!dataDonasi.mediaUrl,
             startTime:    startTime,
             soundUrl:     dataDonasi.soundUrl   || soundUrl,
             videoBlocked: dataDonasi.videoBlocked || false,

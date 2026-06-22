@@ -76,6 +76,9 @@ const overlaySettingSchema = new mongoose.Schema(
     borderColor:     { type: String, default: '#ffffff26' }, 
     maxWidth:        { type: Number, default: 280 },
     overlayPosition: { type: String, default: 'bottom-right' },
+
+    songRequestEnabled:   { type: Boolean, default: false },
+    songRequestMinAmount: { type: Number, default: 25000 },
     
     donationItemsEnabled: { type: Boolean, default: false },
     donationItemsMode: { 

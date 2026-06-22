@@ -18,6 +18,13 @@ const donationSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    songData: {
+      title: String,
+      artist: String,
+      artworkUrl: String,
+      duration: Number,
+      permalinkUrl: String,
+    },
     donorName: {
       type: String,
       default: 'Anonim',

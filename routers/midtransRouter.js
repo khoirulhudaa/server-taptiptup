@@ -14,6 +14,7 @@
   const path = require('path');
   const fs = require('fs');
   const { rateLimitDonation, rateLimitAuth, rateLimitWithdrawal } = require('../middleware/rateLimit');
+  const { isSoundCloudUrl, resolveSoundCloudTrack } = require('../utils/soundcloud');
 
   // Folder temp upload
   const TEMP_DIR = path.join(__dirname, '../temp-uploads');
@@ -57,6 +58,25 @@
   router.post('/enable-2fa', authMiddleware, midtransCtrl.enable2FA);
   router.get('/2fa-status', authMiddleware, midtransCtrl.get2FAStatus);
   router.post('/verify-2fa', authMiddleware, midtransCtrl.verify2FA);
+
+  // ─── SoundCloud Resolve ────────────────────────────────────────────────────
+  router.get('/soundcloud-resolve', rateLimitAuth, async (req, res) => {
+    const { url } = req.query;
+    if (!url || !isSoundCloudUrl(url)) {
+      return res.status(400).json({ message: 'URL SoundCloud tidak valid' });
+    }
+
+    try {
+      const track = await resolveSoundCloudTrack(url);
+      if (!track.streamable) {
+        return res.status(400).json({ message: 'Track ini tidak diizinkan untuk di-stream di luar SoundCloud' });
+      }
+      res.json({ success: true, track });
+    } catch (err) {
+      console.error('[SoundCloud Resolve] Error:', err.message);
+      res.status(500).json({ message: err.response?.data?.error || 'Gagal mengambil data track SoundCloud' });
+    }
+  });
 
   // ─── Withdrawal (Streamer) ────────────────────────────────────────────────────
   router.post('/withdraw', authMiddleware, midtransCtrl.withdrawRateLimiter, midtransCtrl.requestWithdrawal, midtransCtrl.requestWithdrawal);
