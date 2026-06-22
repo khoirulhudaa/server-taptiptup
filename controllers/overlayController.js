@@ -67,8 +67,9 @@ exports.updateSettings = async (req, res) => {
     const allowedFields = [
       'minDonate', 'maxDonate', 'overlayEnabled', 'customIcon', 'showTimestamp',
       'theme', 'primaryColor', 'textColor', 'borderColor', 'animation', 'maxWidth', 
-      'overlayPosition', 'activeSlot', 'progressBarColor', 'donationItems',        // ← tambah ini
-      'donationItemsEnabled', 'donationItemsMode',
+      'overlayPosition', 'activeSlot', 'progressBarColor', 'donationItems',       
+      'donationItemsEnabled', 'donationItemsMode', 
+      'songRequestEnabled', 'songRequestMinAmount', 
 
       // Field Durasi
       'baseDuration', 'extraPerAmount', 'extraDuration', 'durationTiers',
