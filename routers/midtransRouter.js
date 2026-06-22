@@ -59,22 +59,43 @@
   router.get('/2fa-status', authMiddleware, midtransCtrl.get2FAStatus);
   router.post('/verify-2fa', authMiddleware, midtransCtrl.verify2FA);
 
-  // ─── SoundCloud Resolve ────────────────────────────────────────────────────
-  router.get('/soundcloud-resolve', rateLimitAuth, async (req, res) => {
-    const { url } = req.query;
-    if (!url || !isSoundCloudUrl(url)) {
-      return res.status(400).json({ message: 'URL SoundCloud tidak valid' });
+  // === SOUNDCloud SEARCH ===
+  router.get('/soundcloud-search', rateLimitAuth, async (req, res) => {
+    const { q } = req.query;   // q = query pencarian
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ message: 'Ketik minimal 2 karakter' });
     }
 
     try {
-      const track = await resolveSoundCloudTrack(url);
-      if (!track.streamable) {
-        return res.status(400).json({ message: 'Track ini tidak diizinkan untuk di-stream di luar SoundCloud' });
-      }
-      res.json({ success: true, track });
+      const response = await axios.get('https://api.soundcloud.com/tracks', {
+        params: {
+          q: q.trim(),
+          client_id: process.env.SOUNDCLOUD_CLIENT_ID,
+          limit: 6,
+          linked_partitioning: false,
+        },
+        timeout: 7000,
+      });
+
+      const tracks = response.data
+        .filter(track => track.streamable && track.sharing === 'public')
+        .map(track => ({
+          id: track.id,
+          title: track.title,
+          artist: track.user?.username || track.artist,
+          artworkUrl: track.artwork_url || track.user?.avatar_url,
+          duration: Math.floor(track.duration / 1000),
+          permalinkUrl: track.permalink_url,
+          streamUrl: track.stream_url ? `${track.stream_url}?client_id=${process.env.SOUNDCLOUD_CLIENT_ID}` : null,
+        }));
+
+      res.json({ success: true, tracks });
     } catch (err) {
-      console.error('[SoundCloud Resolve] Error:', err.message);
-      res.status(500).json({ message: err.response?.data?.error || 'Gagal mengambil data track SoundCloud' });
+      console.error('[SoundCloud Search Error]', err.message);
+      res.status(500).json({ 
+        message: 'Gagal mencari lagu di SoundCloud. Coba lagi.' 
+      });
     }
   });
 
