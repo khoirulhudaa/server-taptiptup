@@ -236,7 +236,308 @@
     }
   };
 
-  exports.handleWebhook = async (req, res) => {
+  // exports.handleWebhook = async (req, res) => {
+  //   console.log('\n========== [WEBHOOK MIDTRANS MASUK] ==========');
+
+  //   const { order_id, status_code, gross_amount, signature_key, transaction_status, fraud_status } = req.body;
+
+  //   const isValid = verifyMidtransSignature(order_id, status_code, gross_amount, signature_key);
+  //   if (!isValid) {
+  //     console.warn('[Webhook] Signature tidak valid');
+  //     return res.status(401).json({ message: 'Unauthorized' });
+  //   }
+
+  //   const isSuccess =
+  //     transaction_status === 'settlement' ||
+  //     (transaction_status === 'capture' && fraud_status === 'accept');
+
+  //   if (isSuccess) {
+  //     const session = await mongoose.startSession();
+  //     session.startTransaction();
+  //     let committed = false; // ← flag supaya abort tidak dipanggil setelah commit
+
+  //     try {
+  //       const dataDonasi = await Donation.findOneAndUpdate(
+  //         { externalId: order_id, status: 'PENDING' },
+  //         { $set: { status: 'PAID' } },
+  //         { new: true, session }
+  //       ).populate('userId');
+
+  //       if (!dataDonasi) {
+  //         console.log(`[Webhook] Duplikat/tidak ditemukan: ${order_id} — skip`);
+  //         await session.commitTransaction();
+  //         committed = true;
+  //         session.endSession();
+  //         return res.status(200).json({ message: 'OK' });
+  //       }
+
+  //       const streamer = dataDonasi.userId;
+  //       if (!streamer) {
+  //         console.warn('[Webhook] Streamer tidak ditemukan');
+  //         await session.commitTransaction();
+  //         committed = true;
+  //         session.endSession();
+  //         return res.status(200).json({ message: 'OK' });
+  //       }
+
+  //       const nominalInput    = parseFloat(dataDonasi.amount);
+  //       const streamerReceive = parseFloat(dataDonasi.streamerReceive || dataDonasi.amount);
+
+  //       console.log(`[FEE WEBHOOK] Nominal Input: Rp${nominalInput} | Streamer Terima: Rp${streamerReceive}`);
+
+  //       const availableAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+
+  //       const milestones = ['10k', '50k', '100k', '500k', '1jt'];
+  //       const milestoneUpdates = {};
+  //       for (const milestone of milestones) {
+  //         const milestoneAmount = parseInt(milestone.replace('k', '000').replace('jt', '000000'));
+  //         if (nominalInput >= milestoneAmount) {
+  //           milestoneUpdates[`donationMilestones.${milestone}`] = true;
+  //         }
+  //       }
+
+  //       // ← Hapus duplikat findByIdAndUpdate, gabung jadi satu
+  //       await Donation.findByIdAndUpdate(
+  //         dataDonasi._id,
+  //         {
+  //           $set: {
+  //             availableAt,
+  //             isAvailable: false,
+  //             streamerReceive,
+  //           }
+  //         },
+  //         { session }
+  //       );
+
+  //       await User.findByIdAndUpdate(
+  //         streamer._id,
+  //         {
+  //           $inc: {
+  //             walletBalance:      streamerReceive,
+  //             totalDonations:     nominalInput,
+  //             totalDonationCount: 1,
+  //           },
+  //           $set: milestoneUpdates,
+  //         },
+  //         { session }
+  //       );
+
+  //       console.log(`[Webhook] Wallet @${streamer.username} +Rp${streamerReceive} (belum available, perlu tunggu 1 hari)`);
+
+  //       await session.commitTransaction();
+  //       committed = true; // ← commit berhasil
+  //       session.endSession();
+
+  //       // ── Post-commit: donor milestones ─────────────────────────────
+  //       // if (dataDonasi.donorUserId) {
+  //       //   try {
+  //       //     const donorStats = await Donation.aggregate([
+  //       //       {
+  //       //         $match: {
+  //       //           donorUserId: dataDonasi.donorUserId,
+  //       //           status: 'PAID',
+  //       //         }
+  //       //       },
+  //       //       {
+  //       //         $group: {
+  //       //           _id: null,
+  //       //           totalAmount: { $sum: '$amount' },
+  //       //           totalCount:  { $sum: 1 },
+  //       //         }
+  //       //       }
+  //       //     ]);
+
+  //       //     const totalDonorAmount = donorStats[0]?.totalAmount || 0;
+  //       //     const totalDonorCount  = donorStats[0]?.totalCount  || 0;
+
+  //       //     const donorMilestoneUpdates = {};
+  //       //     if (totalDonorCount >= 1)    donorMilestoneUpdates['donorMilestones.1x']   = true;
+  //       //     if (totalDonorCount >= 5)    donorMilestoneUpdates['donorMilestones.5x']   = true;
+  //       //     if (totalDonorAmount >= 10000)   donorMilestoneUpdates['donorMilestones.10k']  = true;
+  //       //     if (totalDonorAmount >= 50000)   donorMilestoneUpdates['donorMilestones.50k']  = true;
+  //       //     if (totalDonorAmount >= 100000)  donorMilestoneUpdates['donorMilestones.100k'] = true;
+  //       //     if (totalDonorAmount >= 1000000) donorMilestoneUpdates['donorMilestones.1jt']  = true;
+
+  //       //     if (Object.keys(donorMilestoneUpdates).length > 0) {
+  //       //       await User.findByIdAndUpdate(
+  //       //         dataDonasi.donorUserId,
+  //       //         { $set: donorMilestoneUpdates }
+  //       //         // ← tidak pakai session, karena sudah post-commit
+  //       //       );
+  //       //       console.log(`[Webhook] Donor milestones updated:`, donorMilestoneUpdates);
+  //       //     }
+  //       //   } catch (donorErr) {
+  //       //     console.warn('[Webhook] Donor milestone update gagal:', donorErr.message);
+  //       //   }
+  //       // }
+
+  //       const io = req.app.get('socketio');
+  //       if (io && streamer?.overlayToken) {
+  //         const overlaySetting = await OverlaySetting.findOne({ userId: streamer._id });
+  //         const soundUrl = overlaySetting?.getSoundForAmount
+  //           ? overlaySetting.getSoundForAmount(nominalInput)
+  //           : (overlaySetting?.soundUrl || null);
+
+  //         const basePayload = {
+  //           donorName:    dataDonasi.donorName,
+  //           amount:       nominalInput,
+  //           message:      dataDonasi.message || '',
+  //           receivedAt:   new Date().toISOString(),
+  //           soundUrl:     dataDonasi.soundUrl || soundUrl,
+  //           donationItem: dataDonasi.donationItem || null,
+  //         };
+
+  //         // ====================== SONG REQUEST (Emit Khusus) ======================
+  //         if (dataDonasi.songData?.videoId) {
+  //           const songPayload = {
+  //             ...basePayload,
+  //             songData: dataDonasi.songData,
+  //             isSongRequest: true,
+  //           };
+
+  //           io.to(streamer.overlayToken).emit('new-song-request', songPayload);
+  //           console.log(`[Webhook] 🎵 Song Request → @${streamer.username} | ${dataDonasi.songData.title}`);
+  //         } 
+  //         // ====================== VOICE ONLY ======================
+  //         else if (dataDonasi.voiceUrl && !dataDonasi.mediaUrl) {
+  //           io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', {
+  //             ...basePayload,
+  //             voiceUrl: dataDonasi.voiceUrl,
+  //           });
+  //         } 
+  //         // ====================== MEDIA SHARE ======================
+  //         else if (dataDonasi.mediaUrl && dataDonasi.isMediaShare) {
+  //           const mediaPayload = {
+  //             ...basePayload,
+  //             mediaUrl: dataDonasi.mediaUrl,
+  //             mediaType: dataDonasi.mediaType || 'image',
+  //             startTime: dataDonasi.startTime || 0,
+  //             isMediaShare: true,
+  //           };
+  //           io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', mediaPayload);
+  //         } 
+  //         // ====================== NORMAL ALERT ======================
+  //         else {
+  //           io.to(streamer.overlayToken).emit('new-donation', basePayload);
+  //         }
+  //       }
+
+  //       // ── Post-commit: poll, subathon, overlay (tidak perlu session) ──────────
+  //       if (dataDonasi.pollVote?.pollId && dataDonasi.pollVote?.optionId) {
+  //         try {
+  //           const poll = await Poll.findOne({ _id: dataDonasi.pollVote.pollId, status: 'active' });
+  //           if (poll) {
+  //             const option = poll.options.id(dataDonasi.pollVote.optionId);
+  //             if (option) {
+  //               option.votes += 1;
+  //               await poll.save();
+  //               const io = req.app.get('socketio');
+  //               if (io && streamer?.overlayToken) {
+  //                 io.to(streamer.overlayToken).emit('poll-updated', poll);
+  //               }
+  //             }
+  //           }
+  //         } catch (pollErr) {
+  //           console.error('[Webhook] Poll vote error:', pollErr.message);
+  //         }
+  //       }
+
+  //       if (dataDonasi.songData?.videoId) {
+  //         const songPayload = {
+  //           ...payload,
+  //           songData: dataDonasi.songData,
+  //           isSongRequest: true,
+  //         };
+
+  //         const io = req.app.get('socketio');
+  //         io.to(streamer.overlayToken).emit('new-song-request', songPayload);
+  //         console.log(`[Webhook] 🎵 Song Request emitted: ${dataDonasi.songData.title}`);
+  //       }
+
+  //       try {
+  //         const subathonResult = await subathonCtrl.handleDonationPaid(req, streamer._id, nominalInput);
+  //         if (subathonResult) {
+  //           const io = req.app.get('socketio');
+  //           if (io && streamer?.overlayToken) {
+  //             io.to(streamer.overlayToken).emit('subathon-updated', subathonResult.timer || subathonResult);
+  //           }
+  //         }
+  //       } catch (subErr) {
+  //         console.error('[Webhook] Subathon error:', subErr.message);
+  //       }
+
+  //       const io = req.app.get('socketio');
+  //       if (io && streamer.overlayToken) {
+  //         const overlaySetting = await OverlaySetting.findOne({ userId: streamer._id });
+  //         const soundUrl = overlaySetting?.getSoundForAmount
+  //           ? overlaySetting.getSoundForAmount(nominalInput)
+  //           : (overlaySetting?.soundUrl || null);
+  //         const displayDuration = getDisplayDuration(nominalInput, overlaySetting);
+
+  //         if (dataDonasi.voiceUrl) {
+  //           io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', {
+  //             donorName:  dataDonasi.donorName,
+  //             amount:     nominalInput,
+  //             message:    dataDonasi.message,
+  //             voiceUrl:   dataDonasi.voiceUrl,
+  //             soundUrl:   null,
+  //             receivedAt: new Date().toISOString(),
+  //           });
+  //           console.log(`[VoiceOverlay] Emitted ke room ${streamer.overlayToken}-voice`);
+  //         }
+
+  //         const rawMediaUrl = dataDonasi.mediaUrl || null;
+  //         const startTime   = dataDonasi.startTime || 0;
+
+  //         const payload = {
+  //           donorName:    dataDonasi.donorName,
+  //           amount:       nominalInput,
+  //           message:      dataDonasi.message,
+  //           voiceUrl:     dataDonasi.voiceUrl   || null,
+  //           mediaUrl: dataDonasi.songData ? dataDonasi.songData.permalinkUrl : (dataDonasi.mediaUrl || null),
+  //           mediaType: dataDonasi.songData ? 'youtube' : (dataDonasi.mediaType || null), // ← ubah 'soundcloud' jadi 'youtube'
+  //           songData:     dataDonasi.songData || null, // ← TAMBAH INI
+  //           isMediaShare: !!dataDonasi.songData || dataDonasi.isMediaShare || !!dataDonasi.mediaUrl,
+  //           startTime:    startTime,
+  //           soundUrl:     dataDonasi.soundUrl   || soundUrl,
+  //           videoBlocked: dataDonasi.videoBlocked || false,
+  //           blockReason:  dataDonasi.blockReason  || null,  // ← TAMBAH INI
+  //           donationItem: dataDonasi.donationItem || null,   
+  //           receivedAt:   new Date().toISOString(),
+  //         };
+
+  //         donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
+  //         console.log(`[Webhook] Donasi "${dataDonasi.donorName}" masuk antrian overlay @${streamer.username}`);
+  //       }
+
+  //     } catch (err) {
+  //       if (!committed) { // ← hanya abort kalau belum commit
+  //         try {
+  //           await session.abortTransaction();
+  //         } catch (abortErr) {
+  //           console.error('[Webhook] Abort error:', abortErr.message);
+  //         }
+  //         session.endSession();
+  //       }
+  //       console.error('[Webhook] Error:', err);
+  //       return res.status(500).json({ message: 'Internal Server Error' });
+  //     }
+  //   }
+
+  //   if (transaction_status === 'expire') {
+  //     await Donation.findOneAndUpdate(
+  //       { externalId: order_id, status: 'PENDING' },
+  //       { $set: { status: 'EXPIRED' } }
+  //     );
+  //     console.log(`[Webhook] Donasi ${order_id} => EXPIRED`);
+  //   }
+
+  //   console.log('========== [WEBHOOK SELESAI] ==========\n');
+  //   return res.status(200).json({ message: 'OK' });
+  // };
+
+
+exports.handleWebhook = async (req, res) => {
     console.log('\n========== [WEBHOOK MIDTRANS MASUK] ==========');
 
     const { order_id, status_code, gross_amount, signature_key, transaction_status, fraud_status } = req.body;
@@ -247,14 +548,13 @@
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const isSuccess =
-      transaction_status === 'settlement' ||
-      (transaction_status === 'capture' && fraud_status === 'accept');
+    const isSuccess = transaction_status === 'settlement' ||
+                     (transaction_status === 'capture' && fraud_status === 'accept');
 
     if (isSuccess) {
       const session = await mongoose.startSession();
       session.startTransaction();
-      let committed = false; // ← flag supaya abort tidak dipanggil setelah commit
+      let committed = false;
 
       try {
         const dataDonasi = await Donation.findOneAndUpdate(
@@ -296,82 +596,80 @@
           }
         }
 
-        // ← Hapus duplikat findByIdAndUpdate, gabung jadi satu
         await Donation.findByIdAndUpdate(
           dataDonasi._id,
-          {
-            $set: {
-              availableAt,
-              isAvailable: false,
-              streamerReceive,
-            }
-          },
+          { $set: { availableAt, isAvailable: false, streamerReceive } },
           { session }
         );
 
         await User.findByIdAndUpdate(
           streamer._id,
           {
-            $inc: {
-              walletBalance:      streamerReceive,
-              totalDonations:     nominalInput,
-              totalDonationCount: 1,
-            },
+            $inc: { walletBalance: streamerReceive, totalDonations: nominalInput, totalDonationCount: 1 },
             $set: milestoneUpdates,
           },
           { session }
         );
 
-        console.log(`[Webhook] Wallet @${streamer.username} +Rp${streamerReceive} (belum available, perlu tunggu 1 hari)`);
+        console.log(`[Webhook] Wallet @${streamer.username} +Rp${streamerReceive}`);
 
         await session.commitTransaction();
-        committed = true; // ← commit berhasil
+        committed = true;
         session.endSession();
 
-        // ── Post-commit: donor milestones ─────────────────────────────
-        if (dataDonasi.donorUserId) {
-          try {
-            const donorStats = await Donation.aggregate([
-              {
-                $match: {
-                  donorUserId: dataDonasi.donorUserId,
-                  status: 'PAID',
-                }
-              },
-              {
-                $group: {
-                  _id: null,
-                  totalAmount: { $sum: '$amount' },
-                  totalCount:  { $sum: 1 },
-                }
-              }
-            ]);
+        // ====================== EMISSION KE OVERLAY ======================
+        const io = req.app.get('socketio');
+        if (io && streamer?.overlayToken) {
+          const overlaySetting = await OverlaySetting.findOne({ userId: streamer._id });
+          const soundUrl = overlaySetting?.getSoundForAmount
+            ? overlaySetting.getSoundForAmount(nominalInput)
+            : (overlaySetting?.soundUrl || null);
 
-            const totalDonorAmount = donorStats[0]?.totalAmount || 0;
-            const totalDonorCount  = donorStats[0]?.totalCount  || 0;
+          const basePayload = {
+            donorName:    dataDonasi.donorName,
+            amount:       nominalInput,
+            message:      dataDonasi.message || '',
+            receivedAt:   new Date().toISOString(),
+            soundUrl:     dataDonasi.soundUrl || soundUrl,
+            donationItem: dataDonasi.donationItem || null,
+          };
 
-            const donorMilestoneUpdates = {};
-            if (totalDonorCount >= 1)    donorMilestoneUpdates['donorMilestones.1x']   = true;
-            if (totalDonorCount >= 5)    donorMilestoneUpdates['donorMilestones.5x']   = true;
-            if (totalDonorAmount >= 10000)   donorMilestoneUpdates['donorMilestones.10k']  = true;
-            if (totalDonorAmount >= 50000)   donorMilestoneUpdates['donorMilestones.50k']  = true;
-            if (totalDonorAmount >= 100000)  donorMilestoneUpdates['donorMilestones.100k'] = true;
-            if (totalDonorAmount >= 1000000) donorMilestoneUpdates['donorMilestones.1jt']  = true;
+          // ====================== SONG REQUEST (Emit Khusus) ======================
+          if (dataDonasi.songData?.videoId) {
+            const songPayload = {
+              ...basePayload,
+              songData: dataDonasi.songData,
+              isSongRequest: true,
+            };
 
-            if (Object.keys(donorMilestoneUpdates).length > 0) {
-              await User.findByIdAndUpdate(
-                dataDonasi.donorUserId,
-                { $set: donorMilestoneUpdates }
-                // ← tidak pakai session, karena sudah post-commit
-              );
-              console.log(`[Webhook] Donor milestones updated:`, donorMilestoneUpdates);
-            }
-          } catch (donorErr) {
-            console.warn('[Webhook] Donor milestone update gagal:', donorErr.message);
+            io.to(streamer.overlayToken).emit('new-song-request', songPayload);
+            console.log(`[Webhook] 🎵 Song Request → @${streamer.username} | ${dataDonasi.songData.title}`);
+          } 
+          // ====================== VOICE ONLY ======================
+          else if (dataDonasi.voiceUrl && !dataDonasi.mediaUrl) {
+            io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', {
+              ...basePayload,
+              voiceUrl: dataDonasi.voiceUrl,
+            });
+          } 
+          // ====================== MEDIA SHARE ======================
+          else if (dataDonasi.mediaUrl && dataDonasi.isMediaShare) {
+            const mediaPayload = {
+              ...basePayload,
+              mediaUrl: dataDonasi.mediaUrl,
+              mediaType: dataDonasi.mediaType || 'image',
+              startTime: dataDonasi.startTime || 0,
+              isMediaShare: true,
+            };
+            io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', mediaPayload);
+          } 
+          // ====================== NORMAL ALERT ======================
+          else {
+            io.to(streamer.overlayToken).emit('new-donation', basePayload);
           }
         }
 
-        // ── Post-commit: poll, subathon, overlay (tidak perlu session) ──────────
+        // Poll & Subathon
         if (dataDonasi.pollVote?.pollId && dataDonasi.pollVote?.optionId) {
           try {
             const poll = await Poll.findOne({ _id: dataDonasi.pollVote.pollId, status: 'active' });
@@ -391,18 +689,6 @@
           }
         }
 
-        if (dataDonasi.songData?.videoId) {
-          const songPayload = {
-            ...payload,
-            songData: dataDonasi.songData,
-            isSongRequest: true,
-          };
-
-          const io = req.app.get('socketio');
-          io.to(streamer.overlayToken).emit('new-song-request', songPayload);
-          console.log(`[Webhook] 🎵 Song Request emitted: ${dataDonasi.songData.title}`);
-        }
-
         try {
           const subathonResult = await subathonCtrl.handleDonationPaid(req, streamer._id, nominalInput);
           if (subathonResult) {
@@ -415,57 +701,9 @@
           console.error('[Webhook] Subathon error:', subErr.message);
         }
 
-        const io = req.app.get('socketio');
-        if (io && streamer.overlayToken) {
-          const overlaySetting = await OverlaySetting.findOne({ userId: streamer._id });
-          const soundUrl = overlaySetting?.getSoundForAmount
-            ? overlaySetting.getSoundForAmount(nominalInput)
-            : (overlaySetting?.soundUrl || null);
-          const displayDuration = getDisplayDuration(nominalInput, overlaySetting);
-
-          if (dataDonasi.voiceUrl) {
-            io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', {
-              donorName:  dataDonasi.donorName,
-              amount:     nominalInput,
-              message:    dataDonasi.message,
-              voiceUrl:   dataDonasi.voiceUrl,
-              soundUrl:   null,
-              receivedAt: new Date().toISOString(),
-            });
-            console.log(`[VoiceOverlay] Emitted ke room ${streamer.overlayToken}-voice`);
-          }
-
-          const rawMediaUrl = dataDonasi.mediaUrl || null;
-          const startTime   = dataDonasi.startTime || 0;
-
-          const payload = {
-            donorName:    dataDonasi.donorName,
-            amount:       nominalInput,
-            message:      dataDonasi.message,
-            voiceUrl:     dataDonasi.voiceUrl   || null,
-            mediaUrl: dataDonasi.songData ? dataDonasi.songData.permalinkUrl : (dataDonasi.mediaUrl || null),
-            mediaType: dataDonasi.songData ? 'youtube' : (dataDonasi.mediaType || null), // ← ubah 'soundcloud' jadi 'youtube'
-            songData:     dataDonasi.songData || null, // ← TAMBAH INI
-            isMediaShare: !!dataDonasi.songData || dataDonasi.isMediaShare || !!dataDonasi.mediaUrl,
-            startTime:    startTime,
-            soundUrl:     dataDonasi.soundUrl   || soundUrl,
-            videoBlocked: dataDonasi.videoBlocked || false,
-            blockReason:  dataDonasi.blockReason  || null,  // ← TAMBAH INI
-            donationItem: dataDonasi.donationItem || null,   
-            receivedAt:   new Date().toISOString(),
-          };
-
-          donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
-          console.log(`[Webhook] Donasi "${dataDonasi.donorName}" masuk antrian overlay @${streamer.username}`);
-        }
-
       } catch (err) {
-        if (!committed) { // ← hanya abort kalau belum commit
-          try {
-            await session.abortTransaction();
-          } catch (abortErr) {
-            console.error('[Webhook] Abort error:', abortErr.message);
-          }
+        if (!committed) {
+          try { await session.abortTransaction(); } catch (e) {}
           session.endSession();
         }
         console.error('[Webhook] Error:', err);
@@ -484,7 +722,6 @@
     console.log('========== [WEBHOOK SELESAI] ==========\n');
     return res.status(200).json({ message: 'OK' });
   };
-
 
   exports.checkAvailableBalance = async (req, res) => {
   try {
