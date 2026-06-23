@@ -10,6 +10,7 @@ const Poll = require('./poll');
 const Suggestion = require('./suggestion');
 const Announcement = require('./announcement');
 const Maintenance = require('./maintenance');
+const AuditLoge = require('./auditLog');
 
 module.exports = {
   User,
@@ -18,7 +19,8 @@ module.exports = {
   Withdrawal,
   Follow,
   Milestone,
-  BannedWord,
+  BannedWord, 
+  AuditLog,
   Subathon,
   Poll,
   Suggestion,

@@ -2,7 +2,7 @@
   const midtransClient = require('midtrans-client');
   const crypto = require('crypto');
   const mongoose = require('mongoose');
-  const { Donation, Withdrawal, User, OverlaySetting, Poll } = require('../models');
+  const { Donation, Withdrawal, User, OverlaySetting, Poll, AuditLog } = require('../models');
   const { filterMessage } = require('./bannedWordController');
   const subathonCtrl = require('./subathonController');
   const { donationQueue } = require('../utils/donationQueue');
@@ -391,6 +391,18 @@
           }
         }
 
+        if (dataDonasi.songData?.videoId) {
+          const songPayload = {
+            ...payload,
+            songData: dataDonasi.songData,
+            isSongRequest: true,
+          };
+
+          const io = req.app.get('socketio');
+          io.to(streamer.overlayToken).emit('new-song-request', songPayload);
+          console.log(`[Webhook] 🎵 Song Request emitted: ${dataDonasi.songData.title}`);
+        }
+
         try {
           const subathonResult = await subathonCtrl.handleDonationPaid(req, streamer._id, nominalInput);
           if (subathonResult) {
@@ -472,6 +484,7 @@
     console.log('========== [WEBHOOK SELESAI] ==========\n');
     return res.status(200).json({ message: 'OK' });
   };
+
 
   exports.checkAvailableBalance = async (req, res) => {
   try {
