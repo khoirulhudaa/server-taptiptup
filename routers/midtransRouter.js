@@ -60,7 +60,17 @@
   router.get('/2fa-status', authMiddleware, midtransCtrl.get2FAStatus);
   router.post('/verify-2fa', authMiddleware, midtransCtrl.verify2FA);
 
-  // === YOUTUBE SEARCH ===
+  // Helper konversi ISO 8601 ("PT3M45S") -> detik
+  function parseISO8601Duration(iso) {
+    if (!iso) return null;
+    const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return null;
+    const hours   = parseInt(match[1] || 0);
+    const minutes = parseInt(match[2] || 0);
+    const seconds = parseInt(match[3] || 0);
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
   router.get('/youtube-search', rateLimitAuth, async (req, res) => {
     const { q } = req.query;
 
@@ -69,13 +79,13 @@
     }
 
     try {
-      const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+      const searchResponse = await axios.get('https://www.googleapis.com/youtube/v3/search', {
         params: {
           key: process.env.YOUTUBE_API_KEY,
           q: q.trim(),
           part: 'snippet',
           type: 'video',
-          videoCategoryId: '10', // kategori Music
+          videoCategoryId: '10',
           maxResults: 6,
           regionCode: 'ID',
           relevanceLanguage: 'id',
@@ -83,13 +93,33 @@
         timeout: 7000,
       });
 
-      const tracks = response.data.items.map(item => ({
+      const items = searchResponse.data.items;
+      const videoIds = items.map(item => item.id.videoId).join(',');
+
+      // Ambil durasi semua video sekaligus (1 request, hemat quota)
+      const detailsResponse = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+        params: {
+          key: process.env.YOUTUBE_API_KEY,
+          id: videoIds,
+          part: 'contentDetails',
+        },
+        timeout: 7000,
+      });
+
+      // Map videoId -> durasi dalam detik
+      const durationMap = {};
+      for (const video of detailsResponse.data.items) {
+        durationMap[video.id] = parseISO8601Duration(video.contentDetails.duration);
+      }
+
+      const tracks = items.map(item => ({
         id: item.id.videoId,
         title: item.snippet.title,
         artist: item.snippet.channelTitle,
         artworkUrl: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
         permalinkUrl: `https://www.youtube.com/watch?v=${item.id.videoId}`,
         videoId: item.id.videoId,
+        duration: durationMap[item.id.videoId] || null,
       }));
 
       res.json({ success: true, tracks });
