@@ -431,8 +431,8 @@
             amount:       nominalInput,
             message:      dataDonasi.message,
             voiceUrl:     dataDonasi.voiceUrl   || null,
-            mediaUrl:     dataDonasi.songData ? dataDonasi.songData.permalinkUrl : (dataDonasi.mediaUrl || null),
-            mediaType:    dataDonasi.songData ? 'soundcloud' : (dataDonasi.mediaType || null),
+            mediaUrl: dataDonasi.songData ? dataDonasi.songData.permalinkUrl : (dataDonasi.mediaUrl || null),
+            mediaType: dataDonasi.songData ? 'youtube' : (dataDonasi.mediaType || null), // ← ubah 'soundcloud' jadi 'youtube'
             songData:     dataDonasi.songData || null, // ← TAMBAH INI
             isMediaShare: !!dataDonasi.songData || dataDonasi.isMediaShare || !!dataDonasi.mediaUrl,
             startTime:    startTime,
