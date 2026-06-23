@@ -10,7 +10,7 @@ const Poll = require('./poll');
 const Suggestion = require('./suggestion');
 const Announcement = require('./announcement');
 const Maintenance = require('./maintenance');
-const AuditLoge = require('./auditLog');
+const AuditLog = require('./auditLog');
 
 module.exports = {
   User,
