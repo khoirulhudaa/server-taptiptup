@@ -79,6 +79,7 @@ const overlaySettingSchema = new mongoose.Schema(
 
     songRequestEnabled:   { type: Boolean, default: false },
     songRequestMinAmount: { type: Number, default: 25000 },
+    songRequestVolume:    { type: Number, default: 80 },
     
     donationItemsEnabled: { type: Boolean, default: false },
     donationItemsMode: { 

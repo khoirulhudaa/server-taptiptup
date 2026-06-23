@@ -69,7 +69,7 @@ exports.updateSettings = async (req, res) => {
       'theme', 'primaryColor', 'textColor', 'borderColor', 'animation', 'maxWidth', 
       'overlayPosition', 'activeSlot', 'progressBarColor', 'donationItems',       
       'donationItemsEnabled', 'donationItemsMode', 
-      'songRequestEnabled', 'songRequestMinAmount', 
+      'songRequestEnabled', 'songRequestMinAmount', 'songRequestVolume',
 
       // Field Durasi
       'baseDuration', 'extraPerAmount', 'extraDuration', 'durationTiers',
@@ -191,6 +191,7 @@ exports.getPublicProfile = async (req, res) => {
       twitter: user.twitter || '',
       followersCount: user.followersCount || 0,
       followingCount: user.followingCount || 0,
+      songRequestVolume: overlaySetting?.songRequestVolume,
       overlaySetting,
       feeBearer: overlaySetting?.feeBearer || 'streamer',
       OverlaySetting: overlaySetting, // untuk kompatibilitas lama
