@@ -15,6 +15,7 @@
   const fs = require('fs');
   const { rateLimitDonation, rateLimitAuth, rateLimitWithdrawal } = require('../middleware/rateLimit');
   const { isSoundCloudUrl, resolveSoundCloudTrack } = require('../utils/soundcloud');
+  const axios = require('axios');
 
   // Folder temp upload
   const TEMP_DIR = path.join(__dirname, '../temp-uploads');
