@@ -571,6 +571,12 @@ exports.handleWebhook = async (req, res) => {
           return res.status(200).json({ message: 'OK' });
         }
 
+        console.log('[Webhook DEBUG]', {
+          mediaUrl: dataDonasi.mediaUrl,
+          mediaType: dataDonasi.mediaType,
+          isMediaShare: dataDonasi.isMediaShare,
+        });
+
         const streamer = dataDonasi.userId;
         if (!streamer) {
           console.warn('[Webhook] Streamer tidak ditemukan');
