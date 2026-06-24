@@ -45,9 +45,10 @@ const donationSchema = new mongoose.Schema(
     },
     
     donationItem: {
-      name:  { type: String },
-      emoji: { type: String },
-      price: { type: Number },
+      name:        { type: String },
+      emoji:       { type: String },
+      price:       { type: Number },
+      quantity:    { type: Number, default: 1 },  // ← TAMBAH INI
       description: { type: String },
     },
 
