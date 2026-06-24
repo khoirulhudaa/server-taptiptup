@@ -154,6 +154,7 @@
     // Bisa juga return HTML sederhana supaya Stream Deck "website" action tidak error
     res.json({ success: true, action, timestamp: Date.now() });
   });
+  
   router.post('/mediashare/control', authMiddleware, rateLimitAuth, async (req, res) => {
     const { action, volume } = req.body;
     // action: 'skip' | 'volume'
@@ -165,6 +166,23 @@
 
     res.json({ success: true });
   });
+
+  router.post('/song-skip', authMiddleware, async (req, res) => {
+    const { overlayToken } = req.body;
+    
+    // Verifikasi token milik user yang request
+    const user = await User.findById(req.user.id).lean();
+    if (!user || user.overlayToken !== overlayToken) {
+      return res.status(403).json({ message: 'Token tidak valid' });
+    }
+
+    const io = req.app.get('socketio');
+    io.to(overlayToken).emit('song-skip');
+    
+    console.log(`[SongSkip] ⏭ @${user.username} skip lagu`);
+    res.json({ success: true });
+  });
+
   // ─── Admin ────────────────────────────────────────────────────────────────────
   // GET bisa difilter: ?status=PENDING / COMPLETED / FAInvLED / (kosong = semua)
   router.get('/admin/withdrawals', authMiddleware, adminMiddleware, rateLimitAuth, midtransCtrl.adminGetPendingWithdrawals);
