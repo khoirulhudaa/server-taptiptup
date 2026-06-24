@@ -664,10 +664,11 @@ exports.handleWebhook = async (req, res) => {
               mediaType: dataDonasi.mediaType || 'image',
               startTime: dataDonasi.startTime || 0,
               isMediaShare: true,
+              videoBlocked: dataDonasi.videoBlocked || false,
+              blockReason: dataDonasi.blockReason || null,
             };
-            // io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', mediaPayload);
-            donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
-          } 
+            donationQueue.enqueue(streamer.overlayToken, mediaPayload, io, displayDuration);
+          }
           // ====================== NORMAL ALERT ======================
           else {
             // io.to(streamer.overlayToken).emit('new-donation', basePayload);

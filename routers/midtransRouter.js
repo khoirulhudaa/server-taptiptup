@@ -183,6 +183,24 @@
     res.json({ success: true });
   });
 
+  router.get('/song-shortcut/:token/:action', rateLimitAuth, async (req, res) => {
+    const { token, action } = req.params;
+    const ALLOWED_ACTIONS = ['skip'];
+
+    if (!ALLOWED_ACTIONS.includes(action)) {
+      return res.status(400).json({ message: 'Invalid action' });
+    }
+
+    const user = await User.findOne({ overlayToken: token }).lean();
+    if (!user) return res.status(404).json({ message: 'Invalid token' });
+
+    const io = req.app.get('socketio');
+    io.to(token).emit('song-skip');
+
+    console.log(`[SongSkip-StreamDeck] ⏭ @${user.username} skip lagu via shortcut URL`);
+    res.json({ success: true, action, timestamp: Date.now() });
+  });
+
   // ─── Admin ────────────────────────────────────────────────────────────────────
   // GET bisa difilter: ?status=PENDING / COMPLETED / FAInvLED / (kosong = semua)
   router.get('/admin/withdrawals', authMiddleware, adminMiddleware, rateLimitAuth, midtransCtrl.adminGetPendingWithdrawals);
