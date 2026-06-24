@@ -52,6 +52,8 @@ const donationSchema = new mongoose.Schema(
       description: { type: String },
     },
 
+    donorGifChoice: { type: String, default: null }, // path gif pilihan donor
+
     // ── Fee tracking ──────────────────────────────────────────
     grossAmount:     { type: Number, default: null },
     streamerReceive: { type: Number, default: null }, // amount setelah 2.5% dipotong

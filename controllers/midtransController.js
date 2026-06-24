@@ -97,7 +97,7 @@
       amount, donorName, message, userId, email,
       mediaUrl, mediaType, donorUserId, soundUrl,
       pollVote, voiceUrl, isMediaShare, donationItem,
-      songData
+      songData, donorGifChoice
     } = req.body;
 
     if (!amount || !userId) {
@@ -206,6 +206,7 @@
         externalId:  orderId,
         userId,
         donorUserId: donorUserId || null,
+        donorGifChoice: donorGifChoice || null,
         // amount:      Math.round(Number(amount)),
         donorName:   donorName || 'Anonim',
         message:     filtered || '',
@@ -632,6 +633,7 @@ exports.handleWebhook = async (req, res) => {
             receivedAt:   new Date().toISOString(),
             soundUrl:     dataDonasi.soundUrl || soundUrl,
             donationItem: dataDonasi.donationItem || null,
+            donorGifChoice: dataDonasi.donorGifChoice || null,  // ← tambah
           };
 
           const displayDuration = getDisplayDuration(nominalInput, overlaySetting);
@@ -728,7 +730,7 @@ exports.handleWebhook = async (req, res) => {
 
     console.log('========== [WEBHOOK SELESAI] ==========\n');
     return res.status(200).json({ message: 'OK' });
-  };
+};
 
   exports.checkAvailableBalance = async (req, res) => {
   try {
