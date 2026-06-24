@@ -56,9 +56,12 @@ class DonationQueueManager {
       };
 
       console.log(`[Queue] 🔄 PROCESSING "${payload.donorName}" | Voice: ${!!payload.voiceUrl} | Media: ${!!payload.mediaUrl}`);
-
+        if (payload.isSongRequest && payload.songData?.videoId) {
+        console.log(`[Queue] 🎵 Emitting Song Request to ${overlayToken}`);
+        io.to(overlayToken).emit('new-song-request', payload);
+      }
       // ==================== VOICE NOTE ====================
-      if (payload.voiceUrl && !payload.mediaUrl) {
+      else if (payload.voiceUrl && !payload.mediaUrl) {
         console.log(`[Queue] 🎙️ Emitting Voice Note to ${overlayToken}-voice`);
         io.to(`${overlayToken}-voice`).emit('new-voice-donation', payload);
       } 

@@ -634,23 +634,27 @@ exports.handleWebhook = async (req, res) => {
             donationItem: dataDonasi.donationItem || null,
           };
 
+          const displayDuration = getDisplayDuration(nominalInput, overlaySetting);
+
           // ====================== SONG REQUEST (Emit Khusus) ======================
           if (dataDonasi.songData?.videoId) {
-            const songPayload = {
+            // ✅ Masuk queue dengan durasi lagu yang sebenarnya
+            const songDuration = (dataDonasi.songData.duration || 180) * 1000; // detik → ms
+            const payload = {
               ...basePayload,
               songData: dataDonasi.songData,
               isSongRequest: true,
             };
-
-            io.to(streamer.overlayToken).emit('new-song-request', songPayload);
-            console.log(`[Webhook] 🎵 Song Request → @${streamer.username} | ${dataDonasi.songData.title}`);
-          } 
+            donationQueue.enqueue(streamer.overlayToken, payload, io, songDuration);
+          }
           // ====================== VOICE ONLY ======================
           else if (dataDonasi.voiceUrl && !dataDonasi.mediaUrl) {
-            io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', {
-              ...basePayload,
-              voiceUrl: dataDonasi.voiceUrl,
-            });
+            // io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', {
+            //   ...basePayload,
+            //   voiceUrl: dataDonasi.voiceUrl,
+            // });
+            const payload = { ...basePayload, voiceUrl: dataDonasi.voiceUrl };
+            donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
           } 
           // ====================== MEDIA SHARE ======================
           else if (dataDonasi.mediaUrl && dataDonasi.isMediaShare) {
@@ -661,11 +665,13 @@ exports.handleWebhook = async (req, res) => {
               startTime: dataDonasi.startTime || 0,
               isMediaShare: true,
             };
-            io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', mediaPayload);
+            // io.to(`${streamer.overlayToken}-mediashare`).emit('new-media-donation', mediaPayload);
+            donationQueue.enqueue(streamer.overlayToken, payload, io, displayDuration);
           } 
           // ====================== NORMAL ALERT ======================
           else {
-            io.to(streamer.overlayToken).emit('new-donation', basePayload);
+            // io.to(streamer.overlayToken).emit('new-donation', basePayload);
+            donationQueue.enqueue(streamer.overlayToken, basePayload, io, displayDuration);
           }
         }
 
