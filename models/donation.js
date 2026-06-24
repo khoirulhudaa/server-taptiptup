@@ -18,6 +18,7 @@ const donationSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    isMediaShare: { type: Boolean, default: false },
     songData: {
       title: String,
       artist: String,
