@@ -43,6 +43,11 @@ const donationSchema = new mongoose.Schema(
       enum: ['PENDING', 'PAID', 'EXPIRED'],
       default: 'PENDING',
     },
+
+    donorIp: {
+      type: String,
+      default: null,
+    },
     
     donationItem: {
       name:        { type: String },

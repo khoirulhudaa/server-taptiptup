@@ -11,6 +11,7 @@ const Suggestion = require('./suggestion');
 const Announcement = require('./announcement');
 const Maintenance = require('./maintenance');
 const AuditLog = require('./auditLog');
+const IpBlacklist = require('./ipBlacklist');
 
 module.exports = {
   User,
@@ -20,6 +21,7 @@ module.exports = {
   Follow,
   Milestone,
   BannedWord, 
+  IpBlacklist, 
   AuditLog,
   Subathon,
   Poll,
