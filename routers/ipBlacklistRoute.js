@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { IpBlacklist, Donation } = require('../models');
 const authMiddleware = require('../middleware/authMiddleware');
+const { default: mongoose } = require('mongoose');
 
 // ── GET  /api/ip-blacklist ── Ambil daftar IP yg diblokir milik streamer ──────
 router.get('/', authMiddleware, async (req, res) => {
