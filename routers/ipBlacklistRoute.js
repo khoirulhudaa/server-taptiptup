@@ -24,7 +24,6 @@ router.post('/', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'IP address wajib diisi' });
   }
 
-  // Validasi format IP sederhana (IPv4 & IPv6)
   const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
   const ipv6Regex = /^[0-9a-fA-F:]+$/;
   const cleanIp = ip.trim();
@@ -49,22 +48,21 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-// ── DELETE /api/ip-blacklist/:id ── Hapus IP dari blacklist ──────────────────
-router.delete('/:id', authMiddleware, async (req, res) => {
+// ── POST /api/ip-blacklist/check ── Cek apakah IP terblokir (public, no auth) ─
+// HARUS di atas /:id agar tidak tertangkap sebagai param
+router.post('/check', async (req, res) => {
+  const { userId, ip } = req.body;
+  if (!userId || !ip) return res.json({ blocked: false });
   try {
-    const entry = await IpBlacklist.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.user.id || req.user._id, // pastikan hanya bisa hapus milik sendiri
-    });
-    if (!entry) return res.status(404).json({ message: 'Entry tidak ditemukan' });
-    res.json({ message: 'IP berhasil dihapus dari blacklist' });
-  } catch (err) {
-    res.status(500).json({ message: 'Gagal menghapus IP' });
+    const entry = await IpBlacklist.findOne({ userId, ip: ip.trim() });
+    res.json({ blocked: !!entry });
+  } catch {
+    res.json({ blocked: false }); // gagal check → jangan blokir
   }
 });
 
-// ── GET /api/ip-blacklist/donations-with-ip ── 
-// Ambil donasi terbaru beserta donorIp, untuk tampilan "blokir dari riwayat"
+// ── GET /api/ip-blacklist/donations-with-ip ──────────────────────────────────
+// HARUS di atas /:id agar tidak tertangkap sebagai param
 router.get('/donations-with-ip', authMiddleware, async (req, res) => {
   try {
     const { limit = 50, page = 1 } = req.query;
@@ -79,7 +77,6 @@ router.get('/donations-with-ip', authMiddleware, async (req, res) => {
       .select('donorName donorIp amount createdAt message _id')
       .lean();
 
-    // Tandai mana yang sudah diblokir
     const blockedIps = await IpBlacklist.find({ userId: req.user.id || req.user._id }).distinct('ip');
     const blockedSet = new Set(blockedIps);
 
@@ -91,6 +88,21 @@ router.get('/donations-with-ip', authMiddleware, async (req, res) => {
     res.json({ donations: result });
   } catch (err) {
     res.status(500).json({ message: 'Gagal mengambil data' });
+  }
+});
+
+// ── DELETE /api/ip-blacklist/:id ── Hapus IP dari blacklist ──────────────────
+// HARUS paling bawah karena /:id akan menangkap semua string
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const entry = await IpBlacklist.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.id || req.user._id,
+    });
+    if (!entry) return res.status(404).json({ message: 'Entry tidak ditemukan' });
+    res.json({ message: 'IP berhasil dihapus dari blacklist' });
+  } catch (err) {
+    res.status(500).json({ message: 'Gagal menghapus IP' });
   }
 });
 
