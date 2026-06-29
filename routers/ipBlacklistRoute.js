@@ -19,6 +19,9 @@ router.get('/', authMiddleware, async (req, res) => {
 // ── POST /api/ip-blacklist ── Tambah IP ke blacklist ─────────────────────────
 router.post('/', authMiddleware, async (req, res) => {
   const { ip, reason, donationId, donorName } = req.body;
+ 
+   console.log('[IP Blacklist] req.user.id:', req.user.id); // ← tambah ini
+   console.log('[IP Blacklist] req.user._id:', req.user._id); // ← tambah ini
 
   if (!ip || !ip.trim()) {
     return res.status(400).json({ message: 'IP address wajib diisi' });
