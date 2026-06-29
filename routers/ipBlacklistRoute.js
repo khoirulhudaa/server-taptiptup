@@ -2,11 +2,12 @@
 const express = require('express');
 const router = express.Router();
 const { IpBlacklist, Donation } = require('../models');
+const authMiddleware = require('../middleware/authMiddleware');
 
 // ── GET  /api/ip-blacklist ── Ambil daftar IP yg diblokir milik streamer ──────
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const list = await IpBlacklist.find({ userId: req.user.id })
+    const list = await IpBlacklist.find({ userId: req.user.id || req.user._id })
       .sort({ createdAt: -1 })
       .lean();
     res.json({ blacklist: list });
@@ -16,7 +17,7 @@ router.get('/', async (req, res) => {
 });
 
 // ── POST /api/ip-blacklist ── Tambah IP ke blacklist ─────────────────────────
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   const { ip, reason, donationId, donorName } = req.body;
 
   if (!ip || !ip.trim()) {
@@ -33,7 +34,7 @@ router.post('/', async (req, res) => {
 
   try {
     const entry = await IpBlacklist.create({
-      userId: req.user.id,
+      userId: req.user.id || req.user._id,
       ip: cleanIp,
       reason: reason?.trim() || '',
       donationId: donationId || null,
@@ -49,11 +50,11 @@ router.post('/', async (req, res) => {
 });
 
 // ── DELETE /api/ip-blacklist/:id ── Hapus IP dari blacklist ──────────────────
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const entry = await IpBlacklist.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user.id, // pastikan hanya bisa hapus milik sendiri
+      userId: req.user.id || req.user._id, // pastikan hanya bisa hapus milik sendiri
     });
     if (!entry) return res.status(404).json({ message: 'Entry tidak ditemukan' });
     res.json({ message: 'IP berhasil dihapus dari blacklist' });
@@ -64,11 +65,11 @@ router.delete('/:id', async (req, res) => {
 
 // ── GET /api/ip-blacklist/donations-with-ip ── 
 // Ambil donasi terbaru beserta donorIp, untuk tampilan "blokir dari riwayat"
-router.get('/donations-with-ip', async (req, res) => {
+router.get('/donations-with-ip', authMiddleware, async (req, res) => {
   try {
     const { limit = 50, page = 1 } = req.query;
     const donations = await Donation.find({
-      userId: req.user.id,
+      userId: req.user.id || req.user._id,
       donorIp: { $ne: null },
       status: 'PAID',
     })
@@ -79,7 +80,7 @@ router.get('/donations-with-ip', async (req, res) => {
       .lean();
 
     // Tandai mana yang sudah diblokir
-    const blockedIps = await IpBlacklist.find({ userId: req.user.id }).distinct('ip');
+    const blockedIps = await IpBlacklist.find({ userId: req.user.id || req.user._id }).distinct('ip');
     const blockedSet = new Set(blockedIps);
 
     const result = donations.map(d => ({
