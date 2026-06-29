@@ -52,27 +52,28 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // ── POST /api/ip-blacklist/check ── Cek apakah IP terblokir (public, no auth) ─
-// HARUS di atas /:id agar tidak tertangkap sebagai param
 router.post('/check', async (req, res) => {
   const { userId, ip } = req.body;
-  console.log('[IP Check] Request:', { userId, ip });
+  console.log('[check] body:', { userId, ip });
   
   if (!userId || !ip) return res.json({ blocked: false });
   
   try {
-    // Cek semua data di collection dulu
-    const allEntries = await IpBlacklist.find({ ip: ip.trim() }).lean();
-    console.log('[IP Check] Semua entry dengan IP ini:', allEntries);
+    // Cek raw dulu tanpa filter apapun
+    const total = await IpBlacklist.countDocuments();
+    const allDocs = await IpBlacklist.find({}).lean();
+    console.log('[check] total docs:', total);
+    console.log('[check] all docs:', JSON.stringify(allDocs));
 
     const entry = await IpBlacklist.findOne({ 
       userId: new mongoose.Types.ObjectId(userId), 
       ip: ip.trim() 
     }).lean();
-    console.log('[IP Check] Result findOne:', entry);
+    console.log('[check] findOne result:', entry);
     
     res.json({ blocked: !!entry });
   } catch (err) {
-    console.error('[IP Check Error]', err.message);
+    console.error('[check] ERROR:', err);
     res.json({ blocked: false });
   }
 });
