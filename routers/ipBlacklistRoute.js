@@ -52,12 +52,25 @@ router.post('/', authMiddleware, async (req, res) => {
 // HARUS di atas /:id agar tidak tertangkap sebagai param
 router.post('/check', async (req, res) => {
   const { userId, ip } = req.body;
+  console.log('[IP Check] Request:', { userId, ip });
+  
   if (!userId || !ip) return res.json({ blocked: false });
+  
   try {
-    const entry = await IpBlacklist.findOne({ userId, ip: ip.trim() });
+    // Cek semua data di collection dulu
+    const allEntries = await IpBlacklist.find({ ip: ip.trim() }).lean();
+    console.log('[IP Check] Semua entry dengan IP ini:', allEntries);
+
+    const entry = await IpBlacklist.findOne({ 
+      userId: new mongoose.Types.ObjectId(userId), 
+      ip: ip.trim() 
+    }).lean();
+    console.log('[IP Check] Result findOne:', entry);
+    
     res.json({ blocked: !!entry });
-  } catch {
-    res.json({ blocked: false }); // gagal check → jangan blokir
+  } catch (err) {
+    console.error('[IP Check Error]', err.message);
+    res.json({ blocked: false });
   }
 });
 
