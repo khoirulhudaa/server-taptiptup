@@ -60,6 +60,7 @@ router.post('/upload-profile-picture', authMiddleware, rateLimitUpload, upload.s
   }
 });
 
+router.post('/test-song', authMiddleware, rateLimitSettings, overlayCtrl.sendTestSong);
 
 // ========== ROUTES - PUBLIK (SEMUA ORANG) ==========
 router.get('/public/:username', overlayCtrl.getPublicProfile);

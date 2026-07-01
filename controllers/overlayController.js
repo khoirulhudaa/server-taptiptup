@@ -70,6 +70,7 @@ exports.updateSettings = async (req, res) => {
       'overlayPosition', 'activeSlot', 'progressBarColor', 'donationItems',       
       'donationItemsEnabled', 'donationItemsMode', 
       'songRequestEnabled', 'songRequestMinAmount', 'songRequestVolume',
+      'songBgColor', 'songTextColor',
 
       // Field Durasi
       'baseDuration', 'extraPerAmount', 'extraDuration', 'durationTiers',
@@ -317,5 +318,49 @@ exports.updateStoreProducts = async (req, res) => {
   } catch (err) {
     console.error('[updateStoreProducts] Error:', err);
     res.status(500).json({ message: 'Gagal menyimpan toko', error: err.message });
+  }
+};
+
+// ============================================================
+// TEST SEND SONG — untuk tombol "Kirim Test Lagu" di dashboard
+// ============================================================
+exports.sendTestSong = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { videoId, title, artist, artworkUrl, duration, donorName } = req.body;
+
+    if (!videoId) {
+      return res.status(400).json({ message: 'Video ID wajib diisi' });
+    }
+
+    const user = await User.findById(userId).select('overlayToken').lean();
+    if (!user?.overlayToken) {
+      return res.status(400).json({ message: 'Overlay token tidak ditemukan' });
+    }
+
+    const io = req.app.get('io') || req.app.get('socketio');
+    if (!io) {
+      return res.status(500).json({ message: 'Socket.IO tidak tersedia' });
+    }
+
+    const songData = {
+      videoId,
+      title: title || 'Test Song',
+      artist: artist || 'Test Artist',
+      artworkUrl: artworkUrl || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+      duration: Number(duration) || 180,
+    };
+
+    io.to(user.overlayToken).emit('new-song-request', {
+      songData,
+      donorName: donorName || 'Tester',
+    });
+
+    console.log(`[TestSong] 🎵 Terkirim ke room ${user.overlayToken}:`, songData.title);
+
+    res.json({ message: 'Test song request terkirim!', songData });
+  } catch (err) {
+    console.error('[sendTestSong] Error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
