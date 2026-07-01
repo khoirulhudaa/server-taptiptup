@@ -298,6 +298,33 @@
         return res.status(500).json({ message: 'Socket.IO tidak tersedia' });
       }
 
+      // ==================== SONG REQUEST REPLAY ====================
+      // ✅ TAMBAHKAN INI PALING ATAS — cek dulu sebelum media/voice
+      if (donation.songData?.videoId) {
+        io.to(streamer.overlayToken).emit('new-song-request', {
+          songData: {
+            videoId:    donation.songData.videoId,
+            title:      donation.songData.title      || 'Untitled',
+            artist:     donation.songData.artist     || 'Unknown Artist',
+            artworkUrl: donation.songData.artworkUrl || '',
+            duration:   donation.songData.duration   || 0,
+          },
+          donorName: donation.donorName || 'Seseorang',
+        });
+
+        console.log(`[Replay] SONG "${donation.songData.title}" dari ${donation.donorName} → @${streamer.username}`);
+
+        return res.json({
+          success: true,
+          message: 'Replay lagu berhasil dikirim ke overlay!',
+          donation: {
+            donor: donation.donorName,
+            title: donation.songData.title,
+            isSongRequest: true,
+          },
+        });
+      }
+
       // ==================== IMPROVED MEDIA TYPE DETECTION ====================
       let resolvedMediaType = donation.mediaType;
 
@@ -311,7 +338,7 @@
           resolvedMediaType = 'video';
         } 
         else if (/tiktok\.com|vt\.tiktok\.com|vm\.tiktok\.com/.test(url)) {
-          resolvedMediaType = 'tiktok';        // ← TAMBAHKAN INI
+          resolvedMediaType = 'tiktok';
         } 
         else {
           resolvedMediaType = 'image';
@@ -323,7 +350,7 @@
         amount:       donation.amount,
         message:      donation.message,
         mediaUrl:     donation.mediaUrl || null,
-        mediaType:    resolvedMediaType,          // ← Sekarang support TikTok
+        mediaType:    resolvedMediaType,
         voiceUrl:     donation.voiceUrl || null,
         startTime:    donation.startTime || 0,
         receivedAt:   new Date().toISOString(),
@@ -332,7 +359,6 @@
         isMediaShare: !!donation.mediaUrl && ['video', 'youtube', 'tiktok', 'image'].includes(resolvedMediaType),
       };
 
-      // ✅ Emit Logic
       if (payload.voiceUrl && !payload.mediaUrl) {
         io.to(`${streamer.overlayToken}-voice`).emit('new-voice-donation', payload);
       } 

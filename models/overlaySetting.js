@@ -117,7 +117,7 @@ const overlaySettingSchema = new mongoose.Schema(
     publicSoundDefault: String, 
     progressBarColor: { type: String, default: '#39ff14' },
 
-    songBgColor:   { type: String, default: '#1e293b' },
+    songBgColor:   { type: String, default: '#0A0F1F' },
     songTextColor: { type: String, default: '#ffffff' },
 
     // ── Misc ────────────────────────────────────────────────────────────────

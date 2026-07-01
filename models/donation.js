@@ -25,6 +25,7 @@ const donationSchema = new mongoose.Schema(
       artworkUrl: String,
       videoId: String,        // ← ganti duration + permalinkUrl
       permalinkUrl: String,   // ← tetap ada (isi dengan youtube URL)
+      duration: Number,
     },
     donorName: {
       type: String,

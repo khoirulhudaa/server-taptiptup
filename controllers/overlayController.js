@@ -127,25 +127,12 @@ exports.updateSettings = async (req, res) => {
     // ==================== EMIT SOCKET (PENTING!) ====================
     const io = req.app.get('io');           // Ambil instance socket.io
     if (io) {
+      // Cari overlayToken user untuk emit ke room yang benar
       const user = await User.findById(userId).select('overlayToken').lean();
-
+      
       if (user?.overlayToken) {
-        // Emit umum — dipakai overlay Alert, dll
         io.to(user.overlayToken).emit('settings-updated');
         io.to(user.overlayToken).emit('leaderboard-updated');
-
-        // ── Emit khusus Song Overlay ──────────────────────────
-        const songFields = [
-          'songBgColor', 'songTextColor',
-          'songRequestEnabled', 'songRequestMinAmount', 'songRequestVolume',
-        ];
-        const hasSongUpdate = songFields.some(f => updateData[f] !== undefined);
-
-        if (hasSongUpdate) {
-          io.to(user.overlayToken).emit('song-settings-updated');
-          console.log(`[Socket] 'song-settings-updated' dikirim ke room: ${user.overlayToken}`);
-        }
-
         console.log(`[Socket] 'settings-updated' dikirim ke room: ${user.overlayToken} | activeSlot → ${updateData.activeSlot || 'A'}`);
       } else {
         console.warn('[Socket] overlayToken tidak ditemukan untuk user ini');
