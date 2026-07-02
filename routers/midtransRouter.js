@@ -86,7 +86,7 @@
           part: 'snippet',
           type: 'video',
           videoCategoryId: '10',
-          maxResults: 6,
+          maxResults: 8,
           regionCode: 'ID',
           relevanceLanguage: 'id',
         },
